@@ -10,15 +10,11 @@ DATA_FILE = "tirage_data.json"
 
 def load_data():
   if not os.path.exists(DATA_FILE):
-    # Données par défaut si le fichier n'existe pas encore
     default_data = {
-        "participants_acceptes": ["Jean Dupont", "Marie Curie", "Lucie Martin"],
-        "participants_refuses": [
-            {"nom": "Marc Tremblay", "raison": "Inscription en double"},
-            {"nom": "Sophie Durand", "raison": "Hors délai"},
-        ],
+        "participants_acceptes": [],
+        "participants_refuses": [],
         "gagnant": None,
-        "etat_tirage": "En attente",  # 'En attente', 'En cours', 'Termine'
+        "etat_tirage": "En attente",
     }
     save_data(default_data)
     return default_data
@@ -32,14 +28,12 @@ def save_data(data):
     json.dump(data, f, ensure_ascii=False, indent=4)
 
 
-# Chargement des données actuelles
 data = load_data()
 
 # --- INTERFACE UTILISATEUR ---
 st.title("🎉 Le Grand Tirage au Sort en Direct !")
 st.write("Suivez le tirage en temps réel et découvrez si la chance vous sourit ! 🍀")
 
-# Barre latérale pour choisir le mode (Admin ou Public)
 st.sidebar.header("⚙️ Configuration")
 mode = st.sidebar.radio("Je suis :", ["Spectateur / Participant", "Administrateur"])
 
@@ -48,18 +42,19 @@ mode = st.sidebar.radio("Je suis :", ["Spectateur / Participant", "Administrateu
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
   st.info(
-    "💡 Cette page se met à jour pour vous montrer les listes et le grand"
-    " gagnant en direct !"
+      "💡 Cette page se met à jour pour vous montrer les listes et le grand"
+      " gagnant en direct !"
   )
 
-  # Affichage de l'état du tirage
   etat = data["etat_tirage"]
   if etat == "En attente":
     st.warning("⏳ Le tirage va bientôt commencer... Restez connectés !")
   elif etat == "En cours":
     st.info("🎰 Le suspense est à son comble... Le tirage est en cours !")
   elif etat == "Termine" and data["gagnant"]:
-    st.success(f"🏆 Le grand gagnant est : **{data['gagnant']}** ! Félicitations ! 🥳")
+    st.success(
+        f"🏆 Le grand gagnant est : **{data['gagnant']}** ! Félicitations ! 🥳"
+    )
 
   col1, col2 = st.columns(2)
 
@@ -79,7 +74,6 @@ if mode == "Spectateur / Participant":
     else:
       st.write("Aucun refus.")
 
-  # Petit bouton pour actualiser manuellement si besoin
   if st.button("🔄 Rafraîchir la page"):
     st.rerun()
 
@@ -90,37 +84,92 @@ else:
   st.sidebar.success("🔒 Mode Administrateur activé")
   st.header("🛠️ Espace de Gestion du Tirage")
 
-  tab1, tab2, tab3 = st.tabs(
-      ["👥 Gérer les Inscrits", "🎁 Lancer le Tirage", "🔄 Réinitialiser"]
-  )
+  tab1, tab2, tab3, tab4 = st.tabs([
+      "📥 Importer en Masse",
+      "👥 Gérer la Liste",
+      "🎁 Lancer le Tirage",
+      "🔄 Réinitialiser",
+  ])
 
+  # ONGLET 1 : IMPORTATION EN MASSE (COPIER-COLLER)
   with tab1:
-    st.subheader("Ajouter ou modifier des participants")
+    st.subheader("📥 Coller la liste des participants")
+    st.write(
+        "Copiez la liste des noms (un par ligne) depuis vos commentaires"
+        " Facebook et collez-la ci-dessous :"
+    )
 
-    # Formulaire pour ajouter un accepté
-    with st.form("add_accepted"):
-      new_acc = st.text_input("Ajouter un participant validé")
-      submit_acc = st.form_submit_button("Valider et Ajouter")
-      if submit_acc and new_acc:
-        data["participants_acceptes"].append(new_acc)
+    texte_brut = st.text_area(
+        "Collez les noms ici :",
+        height=200,
+        placeholder="Jean Dupont\nMarie Curie\nLucie Martin",
+    )
+
+    if st.button("✨ Importer et valider automatiquement"):
+      if texte_brut.strip():
+        # Découpage ligne par ligne
+        lignes = texte_brut.split("\n")
+        ajoutes = 0
+        for ligne in lignes:
+          nom_propre = ligne.strip()
+          # On ignore les lignes vides et on évite les doublons stricts
+          if (
+              nom_propre
+              and nom_propre not in data["participants_acceptes"]
+          ):
+            data["participants_acceptes"].append(nom_propre)
+            ajoutes += 1
+
         save_data(data)
-        st.success(f"Ajouté : {new_acc}")
+        st.success(f"🎉 {ajoutes} participants ont été ajoutés avec succès !")
         st.rerun()
+      else:
+        st.warning("Veuillez coller du texte avant d'importer.")
 
-    # Formulaire pour ajouter un refusé
-    with st.form("add_refused"):
-      new_ref = st.text_input("Nom de la personne refusée")
-      reason_ref = st.text_input("Raison du refus (ex: Incomplet, Doublon...)")
-      submit_ref = st.form_submit_button("Enregistrer le refus")
-      if submit_ref and new_ref:
-        data["participants_refuses"].append(
-            {"nom": new_ref, "raison": reason_ref}
-        )
-        save_data(data)
-        st.success(f"Refus enregistré pour {new_ref}")
-        st.rerun()
-
+  # ONGLET 2 : GESTION CLASSIQUE (SUPPRESSION / AJOUT INDIVIDUEL)
   with tab2:
+    st.subheader("👥 Gérer les participants et refus")
+
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+      st.write("### Validés")
+      if data["participants_acceptes"]:
+        for i, p in enumerate(data["participants_acceptes"]):
+          c1, c2 = st.columns([4, 1])
+          c1.write(f"👤 {p}")
+          if c2.button("❌", key=f"del_acc_{i}"):
+            data["participants_acceptes"].pop(i)
+            save_data(data)
+            st.rerun()
+      else:
+        st.write("Aucun participant.")
+
+    with col_b:
+      st.write("### Refusés")
+      if data["participants_refuses"]:
+        for i, r in enumerate(data["participants_refuses"]):
+          c1, c2 = st.columns([4, 1])
+          c1.write(f"🛑 {r['nom']} (*{r['raison']}*)")
+          if c2.button("❌", key=f"del_ref_{i}"):
+            data["participants_refuses"].pop(i)
+            save_data(data)
+            st.rerun()
+      else:
+        st.write("Aucun refus.")
+
+      # Ajout rapide d'un refusé
+      st.markdown("---")
+      with st.form("add_refused_solo"):
+        n_ref = st.text_input("Refuser un nom précis")
+        r_ref = st.text_input("Raison du refus")
+        if st.form_submit_button("Enregistrer le refus") and n_ref:
+          data["participants_refuses"].append({"nom": n_ref, "raison": r_ref})
+          save_data(data)
+          st.rerun()
+
+  # ONGLET 3 : LANCER LE TIRAGE
+  with tab3:
     st.subheader("🎰 Animation du Tirage au Sort")
     if data["participants_acceptes"]:
       st.write(
@@ -132,15 +181,13 @@ else:
         data["etat_tirage"] = "En cours"
         save_data(data)
 
-        # Petite animation de suspense
-        with st.spinner("Suspense... Le sort is being cast... 🪄"):
+        with st.spinner("Suspense... Le sort est jeté... 🪄"):
           placeholder = st.empty()
           for _ in range(10):
             temp_winner = random.choice(data["participants_acceptes"])
             placeholder.markdown(f"### 🌀 En cours : *{temp_winner}* ...")
             time.sleep(0.3)
 
-          # Choix final du gagnant
           gagnant = random.choice(data["participants_acceptes"])
           data["gagnant"] = gagnant
           data["etat_tirage"] = "Termine"
@@ -155,7 +202,8 @@ else:
           " tirage."
       )
 
-  with tab3:
+  # ONGLET 4 : RÉINITIALISATION
+  with tab4:
     if st.button("🗑️ Réinitialiser complètement le tirage"):
       default_data = {
           "participants_acceptes": [],

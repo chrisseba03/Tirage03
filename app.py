@@ -68,7 +68,7 @@ data = load_data()
 query_params = st.query_params
 if "trigger_draw" in query_params:
     data_fresh = load_data()
-    # SÉCURITÉ ABSOLUE : Si le tirage n'est pas encore terminé, on l'exécute UNE SEULE FOIS et on fige
+    # SÉCURITÉ ABSOLUE : Si le tirage n'est pas déjà terminé, on fixe le gagnant UNE SEULE FOIS pour tous
     if data_fresh["etat_tirage"] != "Termine" and data_fresh["participants_acceptes"]:
         gagnant = random.choice(data_fresh["participants_acceptes"])
         data_fresh["etat_tirage"] = "Termine"
@@ -129,7 +129,7 @@ if mode == "Spectateur / Participant":
         st.info("🔒 **Le tirage est terminé et le résultat est définitivement verrouillé.** Même si vous actualisez la page, ce gagnant restera affiché sur tous vos appareils.")
 
     else:
-        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h43 dès que le compte à rebours arrivera à zéro !")
+        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h46 dès que le compte à rebours arrivera à zéro !")
         st.markdown("---")
         st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
         
@@ -157,7 +157,7 @@ if mode == "Spectateur / Participant":
                 </div>
             </div>
             <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-                Tirage au sort automatique à l'échéance (18h43)
+                Tirage au sort automatique à l'échéance (18h46)
             </div>
 
             <!-- Zone d'Animation Loto -->
@@ -171,7 +171,7 @@ if mode == "Spectateur / Participant":
 
         <script>
             const participants = {participants_js};
-            const countDownDate = new Date("September 25, 2026 18:43:00").getTime();
+            const countDownDate = new Date("September 25, 2026 18:46:00").getTime();
             let animationLancee = false;
 
             const x = setInterval(function() {{

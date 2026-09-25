@@ -2,7 +2,7 @@ import json
 import os
 import random
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import streamlit as st
 
 DATA_FILE = "tirage_data.json"
@@ -61,13 +61,38 @@ mode = st.sidebar.radio("Je suis :", ["Spectateur / Participant", "Administrateu
 if mode == "Spectateur / Participant":
     st.info("💡 **Info :** Cette page se met à jour régulièrement pour intégrer les nouveaux participants au fur et à mesure des validations !")
     
-    # Compte à rebours fictif ou visuel (par exemple prévu pour dans 2 heures, ou date fixe)
+    # Compte à rebours dynamique jusqu'au 4 octobre 2026 à 20h00
     st.markdown("---")
-    col_chrono1, col_chrono2, col_chrono3 = st.columns([1, 2, 1])
+    col_chrono1, col_chrono2, col_chrono3 = st.columns([1, 3, 1])
     with col_chrono2:
-        st.markdown("### ⏳ Temps avant le grand tirage :")
-        # Affichage d'un faux compte à rebours dynamique ou widget visuel
-        st.metric(label="Statut du tirage", value=data["etat_tirage"], delta="En direct de La Place du Village")
+        st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage</h3>", unsafe_allow_html=True)
+        
+        # Date cible : 4 octobre 2026 à 20:00 (heure de Paris / UTC+2)
+        # On fixe une timezone approximative pour la France (UTC+2 en octobre)
+        tz_france = timezone(timedelta(hours=2))
+        cible = datetime(2026, 10, 4, 20, 0, 0, tzinfo=tz_france)
+        maintenant = datetime.now(tz_france)
+        
+        delta = cible - maintenant
+        
+        if delta.total_seconds() > 0:
+            jours = delta.days
+            heures, reste = divmod(delta.seconds, 3600)
+            minutes, secondes = divmod(reste, 60)
+            
+            st.markdown(f"""
+            <div style="text-align: center; font-size: 20px; font-weight: bold; background-color: #f0f2f6; padding: 10px; border-radius: 10px;">
+                ⌛ {jours} jours, {heures}h {minutes}m {secondes}s restants<br>
+                <span style="font-size: 14px; color: gray;">Fermeture et tirage le Dimanche 4 octobre à 20h00</span>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="text-align: center; font-size: 20px; font-weight: bold; background-color: #ffcccc; padding: 10px; border-radius: 10px;">
+                🚨 Les inscriptions sont closes ! Le tirage est imminent !
+            </div>
+            """, unsafe_allow_html=True)
+            
     st.markdown("---")
 
     etat = data["etat_tirage"]
@@ -80,7 +105,8 @@ if mode == "Spectateur / Participant":
     
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("✅ Participants Validés")
+        nb_participants = len(data["participants_acceptes"])
+        st.subheader(f"✅ Participants Validés ({nb_participants})")
         if data["participants_acceptes"]:
             for p in data["participants_acceptes"]:
                 st.write(f"- 👤 {p}")
@@ -88,7 +114,8 @@ if mode == "Spectateur / Participant":
             st.write("Aucun participant validé pour le moment.")
             
     with col2:
-        st.subheader("❌ Inscriptions Refusées")
+        nb_refuses = len(data["participants_refuses"])
+        st.subheader(f"❌ Inscriptions Refusées ({nb_refuses})")
         if data["participants_refuses"]:
             for r in data["participants_refuses"]:
                 st.write(f"- 🛑 **{r['nom']}** (*Raison : {r['raison']}*)")
@@ -104,7 +131,6 @@ if mode == "Spectateur / Participant":
 else:
     st.sidebar.success("🔒 Mode Administrateur activé")
     
-    # Affichage du compteur de visites réservé à l'admin dans la barre latérale ou en haut
     nb_visites = st.session_state.get("visit_count", 1)
     st.sidebar.markdown(f"📊 **Statistiques :** `{nb_visites}` visites sur l'appli.")
 
@@ -147,7 +173,7 @@ else:
         with tab2:
             st.markdown("##### Lancer le Tirage")
             if data["participants_acceptes"]:
-                st.write(f"Participants : {len(data['participants_acceptes'])}")
+                st.write(f"Participants validés : {len(data['participants_acceptes'])}")
                 if st.button("🎲 LANCER LE TIRAGE !"):
                     data["etat_tirage"] = "En cours"
                     save_data(data)
@@ -225,7 +251,7 @@ else:
         st.markdown("#### Listes affichées en direct :")
         sub_c1, sub_c2 = st.columns(2)
         with sub_c1:
-            st.markdown("**✅ Validés**")
+            st.markdown(f"**✅ Validés ({len(data['participants_acceptes'])})**")
             if data["participants_acceptes"]:
                 for p in data["participants_acceptes"]:
                     st.write(f"- {p}")
@@ -233,7 +259,7 @@ else:
                 st.write("Vide")
                 
         with sub_c2:
-            st.markdown("**❌ Refusés**")
+            st.markdown(f"**❌ Refusés ({len(data['participants_refuses'])})**")
             if data["participants_refuses"]:
                 for r in data["participants_refuses"]:
                     st.write(f"- {r['nom']}")

@@ -8,7 +8,6 @@ import streamlit as st
 DATA_FILE = "tirage_data.json"
 VISITS_FILE = "visits_count.json"
 
-# MOT DE PASSE ADMINISTRATEUR MIS À JOUR
 ADMIN_PASSWORD = "admin170767"
 
 def load_data():
@@ -90,7 +89,7 @@ if mode == "Spectateur / Participant":
     st.info("💡 **Info :** Cette page se met à jour régulièrement pour intégrer les nouveaux participants au fur et à mesure des validations !")
     
     st.markdown("---")
-    st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & Compte à Rebours</h3>", hourglass := True)
     
     tz_france = timezone(timedelta(hours=2))
     cible = datetime(2026, 10, 4, 20, 0, 0, tzinfo=tz_france)
@@ -108,12 +107,6 @@ if mode == "Spectateur / Participant":
             <span style="font-size: 13px; color: #38bdf8;">Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00</span>
         </div>
         """, unsafe_allow_html=True)
-        
-        if delta.total_seconds() <= 0 and data["participants_acceptes"] and data["etat_tirage"] == "En attente":
-            data["etat_tirage"] = "Termine"
-            data["gagnant"] = random.choice(data["participants_acceptes"])
-            save_data(data)
-            st.rerun()
     
     etat = data["etat_tirage"]
     if etat == "Termine" and data["gagnant"]:
@@ -199,20 +192,12 @@ else:
 
         with tab2:
             st.markdown("##### 🧪 Test à blanc de l'animation")
-            st.write("Testez l'animation des boules de loto et le TADAM en direct dès maintenant.")
+            st.write("Testez l'animation des boules de loto en direct (visible dans l'aperçu live à droite).")
+            
+            # Déclenchement du test à blanc affiché dans l'aperçu live à droite
             if st.button("🧪 LANCER UN TEST À BLANC"):
                 if data["participants_acceptes"]:
-                    st.info("🎰 Mélange des boules magiques...")
-                    placeholder = st.empty()
-                    for _ in range(12):
-                        temp_winner = random.choice(data["participants_acceptes"])
-                        placeholder.markdown(f"<h3 style='text-align: center; color: #3b82f6;'>🌀 Boule en cours : {temp_winner}</h3>", unsafe_allow_html=True)
-                        time.sleep(0.2)
-                    
-                    gagnant_test = random.choice(data["participants_acceptes"])
-                    placeholder.empty()
-                    st.success(f"🧪 **[TEST À BLANC] TADAM ! Le gagnant simulé est : {gagnant_test}** 🥳")
-                    st.balloons()
+                    st.session_state["run_test"] = True
                 else:
                     st.warning("Ajoutez d'abord des participants pour faire tourner les boules !")
 
@@ -224,28 +209,39 @@ else:
                     data["etat_tirage"] = "En cours"
                     save_data(data)
                     
-                    with st.spinner("Suspense... Les boules tournent dans le boulier ! 🪄"):
-                        placeholder = st.empty()
-                        for _ in range(15):
-                            temp_winner = random.choice(data["participants_acceptes"])
-                            placeholder.markdown(f"<h3 style='text-align: center; color: #f59e0b;'>🎰 Tirage... {temp_winner}</h3>", unsafe_allow_html=True)
-                            time.sleep(0.25)
+                    with col_live:
+                        with st.spinner("Suspense... Les boules tournent dans le boulier ! 🪄"):
+                            placeholder = st.empty()
+                            for _ in range(15):
+                                temp_winner = random.choice(data["participants_acceptes"])
+                                placeholder.markdown(f"<h3 style='text-align: center; color: #f59e0b;'>🎰 Tirage... {temp_winner}</h3>", unsafe_allow_html=True)
+                                time.sleep(0.2)
+                            
+                            gagnant = random.choice(data["participants_acceptes"])
+                            data["gagnant"] = gagnant
+                            data["etat_tirage"] = "Termine"
+                            save_data(data)
+                            placeholder.empty()
                         
-                        gagnant = random.choice(data["participants_acceptes"])
-                        data["gagnant"] = gagnant
-                        data["etat_tirage"] = "Termine"
-                        save_data(data)
-                        placeholder.empty()
-                    
-                    st.balloons()
-                    st.success(f"🏆 Le grand gagnant officiel est : **{gagnant}** !")
+                        st.balloons()
+                        st.success(f"🏆 Le grand gagnant officiel est : **{gagnant}** !")
                     st.rerun()
             else:
                 st.warning("Ajoutez des participants d'abord.")
 
+            # Bouton pour effacer le gagnant et refaire des tests
+            st.markdown("---")
+            if data["etat_tirage"] == "Termine":
+                if st.button("🔄 Effacer le gagnant / Réinitialiser le tirage"):
+                    data["etat_tirage"] = "En attente"
+                    data["gagnant"] = None
+                    save_data(data)
+                    st.success("Tirage réinitialisé ! Le gagnant a été effacé.")
+                    st.rerun()
+
         with tab3:
-            st.markdown("##### Réinitialisation")
-            if st.button("🗑️ Tout effacer / Reset"):
+            st.markdown("##### Réinitialisation complète")
+            if st.button("🗑️ Tout effacer (Participants + Refus + Gagnant)"):
                 default_data = {
                     "participants_acceptes": [],
                     "participants_refuses": [],
@@ -253,7 +249,7 @@ else:
                     "etat_tirage": "En attente"
                 }
                 save_data(default_data)
-                st.success("Remis à zéro !")
+                st.success("Remis à zéro complet !")
                 st.rerun()
 
         st.markdown("---")
@@ -284,15 +280,30 @@ else:
 
     # --- COLONNE DE DROITE : APERÇU LIVE ---
     with col_live:
-        st.markdown("### 👀 Aperçu Live (Vue Admin)")
+        st.markdown("### 👀 Aperçu Live (Vue Participant)")
         st.markdown("---")
         
-        etat = data["etat_tirage"]
-        if etat == "En attente":
-            st.warning("⏳ Le tirage va bientôt commencer...")
-        elif etat == "Termine" and data["gagnant"]:
-            st.success(f"🏆 Gagnant officiel : **{data['gagnant']}** !")
+        # Si un test à blanc a été déclenché, on joue l'animation directement ici dans l'aperçu live !
+        if st.session_state.get("run_test", False):
+            st.info("🧪 [TEST À BLANC] Mélange des boules magiques...")
+            placeholder_test = st.empty()
+            for _ in range(12):
+                temp_winner = random.choice(data["participants_acceptes"])
+                placeholder_test.markdown(f"<h3 style='text-align: center; color: #3b82f6;'>🌀 Boule en cours : {temp_winner}</h3>", unsafe_allow_html=True)
+                time.sleep(0.2)
             
+            gagnant_test = random.choice(data["participants_acceptes"])
+            placeholder_test.empty()
+            st.success(f"🧪 **[TEST À BLANC] TADAM ! Le gagnant simulé est : {gagnant_test}** 🥳")
+            st.balloons()
+            st.session_state["run_test"] = False
+        else:
+            etat = data["etat_tirage"]
+            if etat == "En attente":
+                st.warning("⏳ Le tirage va bientôt commencer...")
+            elif etat == "Termine" and data["gagnant"]:
+                st.success(f"🏆 Gagnant officiel : **{data['gagnant']}** !")
+                
         st.markdown("#### Listes affichées en direct :")
         sub_c1, sub_c2 = st.columns(2)
         with sub_c1:

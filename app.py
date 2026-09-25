@@ -56,27 +56,23 @@ if "visited" not in st.session_state:
 if "is_admin" not in st.session_state:
     st.session_state["is_admin"] = False
 
-# ---------------------------------------------------------
-# POINT DE CONTRÔLE SÉCURISÉ (ENREGISTREMENT UNIQUE ET DÉFINITIF)
-# ---------------------------------------------------------
-query_params = st.query_params
-if "action" in query_params and query_params["action"] == "execute_draw":
-    data_live = load_data()
-    # SÉCURITÉ ABSOLUE : Si aucun gagnant n'est enregistré dans le fichier JSON
-    if not data_live["gagnant"] and data_live["participants_acceptes"]:
-        gagnant_recu = query_params.get("winner", None)
-        if gagnant_recu and gagnant_recu in data_live["participants_acceptes"]:
-            data_live["gagnant"] = gagnant_recu
-        else:
-            data_live["gagnant"] = data_live["participants_acceptes"][0]
-            
-        data_live["etat_tirage"] = "Termine"
-        save_data(data_live)
-    
-    st.query_params.clear()
-    st.rerun()
-
+# Chargement des données actuelles
 data = load_data()
+
+# ---------------------------------------------------------
+# VÉRIFICATION AUTOMATIQUE CÔTÉ SERVEUR (HEURE CIBLE : 19h07)
+# ---------------------------------------------------------
+# Date et heure cible exacte : 25 septembre 2026 à 19h07:00
+target_datetime = datetime(2026, 9, 25, 19, 7, 0)
+now = datetime.now()
+
+# Si l'heure est dépassée, que le tirage n'a pas encore de gagnant et qu'il y a des participants
+if now >= target_datetime and not data["gagnant"] and data["participants_acceptes"]:
+    gagnant_officiel = random.choice(data["participants_acceptes"])
+    data["gagnant"] = gagnant_officiel
+    data["etat_tirage"] = "Termine"
+    save_data(data)
+    st.rerun()
 
 st.title("🎉 Le Grand Tirage au Sort en Direct")
 st.write("Bienvenue sur le direct officiel ! Suivez le tirage au sort de chez vous en toute transparence. 🍀")
@@ -120,19 +116,16 @@ if data["gagnant"] or data["etat_tirage"] == "Termine":
     </div>
     """, unsafe_allow_html=True)
     
-    st.success("🔒 **Tirage verrouillé par le système.** Peu importe le nombre d'actualisations sur vos différents écrans, ce résultat est immuable.")
+    st.success("🔒 **Tirage verrouillé par le serveur.** Tous les appareils affichent ce même résultat unique.")
 
 # ---------------------------------------------------------
-# EN ATTENTE DU TIRAGE (COMPTE À REBOURS PRÉCIS À 19H05)
+# EN ATTENTE DU TIRAGE (COMPTE À REBOURS VISUEL À 19H07)
 # ---------------------------------------------------------
 else:
-    st.info("💡 **Le saviez-vous ?** Le compte à rebours ci-dessous est synchronisé. À **19h05** pile, l'animation désignera le vainqueur sous vos yeux en direct !")
+    st.info("💡 **Le saviez-vous ?** Le compte à rebours ci-dessous indique le temps restant avant le tirage officiel à **19h07** pile !")
     st.markdown("---")
     
-    participants_json = json.dumps(data["participants_acceptes"], ensure_ascii=False)
-    
-    # Heure cible programmée strictement à 19h05:00 heure locale (basée sur le composant)
-    live_animation_html = f"""
+    live_animation_html = """
     <div style="text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 10px;">
         <div id="countdown-box" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;">
             <div style="background: #1e293b; color: white; padding: 12px; border-radius: 8px; min-width: 65px;">
@@ -148,62 +141,25 @@ else:
                 <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Sec</span>
             </div>
         </div>
-        <div id="status-text" style="font-size: 14px; color: #64748b; margin-bottom: 15px; font-weight: 500;">
-            En attente de l'heure du tirage (19h05)...
-        </div>
-
-        <div id="loto-container" style="display: none; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-            <h3 style="margin: 0 0 15px 0; font-size: 20px; letter-spacing: 1px;">🎰 TIRAGE AU SORT EN COURS...</h3>
-            <div id="loto-ball" style="margin: 0 auto; width: 130px; height: 130px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; text-align: center; padding: 10px; box-shadow: inset 0 5px 10px rgba(255,255,255,0.7), 0 8px 15px rgba(0,0,0,0.3); word-break: break-word;">
-                Mélange...
-            </div>
+        <div id="status-text" style="font-size: 14px; color: #64748b; font-weight: 500;">
+            Le serveur effectuera le tirage officiel automatiquement à 19h07. Actualisez la page si besoin pour voir le résultat en direct !
         </div>
     </div>
 
     <script>
-        const participants = {participants_json};
-        
-        // DÉFINITION DE LA DATE ET HEURE EXACTE : 25 septembre 2026 à 19h05:00
-        const targetTime = new Date(2026, 8, 25, 19, 5, 0).getTime();
-        let animationTriggered = false;
+        const targetTime = new Date(2026, 8, 25, 19, 7, 0).getTime();
 
-        const timer = setInterval(function() {{
+        const timer = setInterval(function() {
             const now = new Date().getTime();
             const distance = targetTime - now;
 
-            if (distance <= 0) {{
+            if (distance <= 0) {
                 clearInterval(timer);
                 document.getElementById("hours").innerText = "0";
                 document.getElementById("minutes").innerText = "0";
                 document.getElementById("seconds").innerText = "0";
-                
-                if (participants.length > 0) {{
-                    if (animationTriggered) return;
-                    animationTriggered = true;
-
-                    document.getElementById("countdown-box").style.display = "none";
-                    document.getElementById("status-text").style.display = "none";
-                    document.getElementById("loto-container").style.display = "block";
-
-                    let counter = 0;
-                    let selectedWinner = "";
-                    
-                    const spinInterval = setInterval(function() {{
-                        selectedWinner = participants[Math.floor(Math.random() * participants.length)];
-                        document.getElementById("loto-ball").innerText = selectedWinner;
-                        counter++;
-                        
-                        if (counter > 25) {{
-                            clearInterval(spinInterval);
-                            // TRANSMISSION UNIQUE AU SERVEUR POUR VERROUILLAGE DÉFINITIF
-                            const cleanBaseUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                            window.top.location.href = cleanBaseUrl + "?action=execute_draw&winner=" + encodeURIComponent(selectedWinner);
-                        }}
-                    }}, 150);
-                }} else {{
-                    document.getElementById("status-text").innerText = "Heure atteinte, mais aucun participant enregistré !";
-                }}
-            }} else {{
+                document.getElementById("status-text").innerText = "Heure atteinte ! En attente de la validation du serveur...";
+            } else {
                 const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((distance % (1000 * 60)) / 1000);
@@ -211,11 +167,11 @@ else:
                 document.getElementById("hours").innerText = hours;
                 document.getElementById("minutes").innerText = minutes;
                 document.getElementById("seconds").innerText = seconds;
-            }}
-        }}, 1000);
+            }
+        }, 1000);
     </script>
     """
-    components.html(live_animation_html, height=225)
+    components.html(live_animation_html, height=140)
 
 # ---------------------------------------------------------
 # LISTES PUBLIQUE

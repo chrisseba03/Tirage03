@@ -138,64 +138,63 @@ if mode == "Spectateur / Participant":
 
     <script>
         const participants = {participants_js};
-        // Date configurée pour aujourd'hui à 17h52
         const countDownDate = new Date("September 25, 2026 17:52:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
 
-        function showWinnerUI(winner) {
+        function showWinnerUI(winner) {{
             document.getElementById("countdown-box").style.display = "none";
             document.getElementById("countdown-text").style.display = "none";
             document.getElementById("loto-display").style.display = "none";
             document.getElementById("winner-box").style.display = "block";
             document.getElementById("winner-name").innerText = winner;
-        }
+        }}
 
-        function lancerAnimationLoto(winnerName) {
+        function lancerAnimationLoto(winnerName) {{
             document.getElementById("countdown-box").style.display = "none";
             document.getElementById("countdown-text").style.display = "none";
             document.getElementById("loto-display").style.display = "block";
 
-            if (participants.length === 0) {
+            if (participants.length === 0) {{
                 document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré ! (Ajoutez-en dans l'admin)</h3>";
                 return;
-            }
+            }}
 
             let counter = 0;
-            const animInterval = setInterval(function() {
+            const animInterval = setInterval(function() {{
                 const randomIndex = Math.floor(Math.random() * participants.length);
                 document.getElementById("ball").innerText = participants[randomIndex];
                 counter++;
                 
-                if (counter > 15) {
+                if (counter > 15) {{
                     clearInterval(animInterval);
                     showWinnerUI(winnerName || participants[0]);
-                }
-            }, 200);
-        }
+                }}
+            }}, 200);
+        }}
 
-        if (etatAdmin === "Termine" && gagnantAdmin) {
+        if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
-        } else if (etatAdmin === "En cours") {
+        }} else if (etatAdmin === "En cours") {{
             lancerAnimationLoto(gagnantAdmin);
-        } else {
-            const x = setInterval(function() {
+        }} else {{
+            const x = setInterval(function() {{
                 const now = new Date().getTime();
                 const distance = countDownDate - now;
 
-                if (distance < 0) {
+                if (distance < 0) {{
                     clearInterval(x);
                     document.getElementById("days").innerText = "0";
                     document.getElementById("hours").innerText = "0";
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
                     
-                    if (participants.length > 0) {
+                    if (participants.length > 0) {{
                         lancerAnimationLoto(participants[Math.floor(Math.random() * participants.length)]);
-                    } else {
+                    }} else {{
                         document.getElementById("countdown-text").innerText = "Temps écoulé ! Aucun participant.";
-                    }
-                } else {
+                    }}
+                }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                     const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
@@ -205,9 +204,9 @@ if mode == "Spectateur / Participant":
                     document.getElementById("hours").innerText = hours;
                     document.getElementById("minutes").innerText = minutes;
                     document.getElementById("seconds").innerText = seconds;
-                }
-            }, 1000);
-        }
+                }}
+            }}, 1000);
+        }}
     </script>
     """
     components.html(live_html, height=180)

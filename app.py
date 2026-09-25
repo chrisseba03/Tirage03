@@ -2,7 +2,6 @@ import json
 import os
 import random
 import time
-import pandas as pd
 import streamlit as st
 
 DATA_FILE = "tirage_data.json"
@@ -39,7 +38,7 @@ st.sidebar.header("⚙️ Configuration")
 mode = st.sidebar.radio("Je suis :", ["Spectateur / Participant", "Administrateur"])
 
 # ---------------------------------------------------------
-# MODE 1 : SPECTATEUR / PARTICIPANT
+# MODE 1 : SPECTATEUR / PARTICIPANT (Seul)
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
   st.info(
@@ -79,157 +78,55 @@ if mode == "Spectateur / Participant":
     st.rerun()
 
 # ---------------------------------------------------------
-# MODE 2 : ADMINISTRATEUR (VOUS)
+# MODE 2 : ADMINISTRATEUR (TOUT-EN-UN)
 # ---------------------------------------------------------
 else:
   st.sidebar.success("🔒 Mode Administrateur activé")
-  st.header("🛠️ Espace de Gestion du Tirage")
+  st.header("🛠️ Espace de Gestion (Tout-en-un)")
 
-  tab1, tab2, tab3, tab4 = st.tabs([
-      "📥 Importer & Vérifier les Noms",
-      "👥 Gérer les Listes",
-      "🎁 Lancer le Tirage",
-      "🔄 Réinitialiser",
-  ])
+  tab1, tab2, tab3 = st.tabs(
+      ["👥 Gérer les Participants", "🎁 Lancer le Tirage", "🔄 Réinitialiser"]
+  )
 
-  # ONGLET 1 : IMPORTATION AVEC TABLEAU DE CONTRÔLE
   with tab1:
-    st.subheader("📥 Extraction et Validation des Noms")
-    st.write(
-        "Collez les commentaires ci-dessous. L'application va repérer les"
-        " auteurs et vous présenter un tableau de contrôle avant de valider."
+    st.subheader("📝 Ajouter des participants (un nom par ligne)")
+    texte_noms = st.text_area(
+        "Collez votre liste de noms ici :",
+        height=150,
+        placeholder="Christophe Brasseur\nMagali Lefebvre\n...",
     )
 
-    texte_fb = st.text_area(
-        "Collez les commentaires Facebook ici :",
-        height=200,
-        placeholder="Collez tout le texte brut ici...",
-    )
-
-    if "noms_detectes" not in st.session_state:
-      st.session_state["noms_detectes"] = []
-
-    if st.button("🔍 Analyser le texte"):
-      if texte_fb.strip():
-        lignes = texte_fb.split("\n")
-        noms_trouves = []
-
-        # Analyse intelligente des lignes courtes (souvent les noms sur Facebook)
+    if st.button("➕ Enregistrer ces participants"):
+      if texte_noms.strip():
+        lignes = texte_noms.split("\n")
+        ajoutes = 0
         for ligne in lignes:
-          ligne_propre = ligne.replace("👤", "").strip()
-          # Un nom Facebook fait rarement plus de 4 mots et ne contient pas de longs pavés de texte
-          if (
-              ligne_propre
-              and len(ligne_propre) < 35
-              and " " in ligne_propre
-              and not any(
-                  m in ligne_propre.lower()
-                  for m in [
-                      "répondre",
-                      "partager",
-                      "modifié",
-                      "commentaire",
-                      "http",
-                      "www",
-                      "comment",
-                  ]
-              )
-          ):
-            # Éviter les doublons dans la détection
-            if (
-                ligne_propre not in noms_trouves
-                and ligne_propre not in data["participants_acceptes"]
-            ):
-              noms_trouves.append(ligne_propre)
-
-        st.session_state["noms_detectes"] = noms_trouves
-        if noms_trouves:
-          st.success(
-              f"✨ {len(noms_trouves)} noms potentiels détectés ! Vérifiez-les"
-              " ci-dessous :"
-          )
-        else:
-          st.warning(
-              "Aucun nom n'a pu être isolé automatiquement. Essayez de coller"
-              " une liste plus propre."
-          )
-      else:
-        st.warning("Veuillez coller du texte.")
-
-    # Si des noms ont été trouvés, on affiche un tableau éditable (cases à cocher)
-    if st.session_state["noms_detectes"]:
-      st.write("### 📝 Cochez les participants à valider :")
-
-      # Création d'un tableau interactif
-      df_temp = pd.DataFrame({
-          "Nom": st.session_state["noms_detectes"],
-          "Valider": [True] * len(st.session_state["noms_detectes"]),
-      })
-
-      edited_df = st.data_editor(df_temp, hide_index=True, use_container_width=True)
-
-      if st.button("🚀 Ajouter les participants cochés à la liste officielle"):
-        # Récupérer uniquement ceux qui sont cochés à True
-        a_ajouter = edited_df[edited_df["Valider"] == True]["Nom"].tolist()
-        ajout_count = 0
-        for nom in a_ajouter:
-          if nom not in data["participants_acceptes"]:
+          nom = ligne.strip()
+          if nom and nom not in data["participants_acceptes"]:
             data["participants_acceptes"].append(nom)
-            ajout_count += 1
-
+            ajoutes += 1
         save_data(data)
-        st.session_state["noms_detectes"] = []  # On vide la mémoire
-        st.success(
-            f"🎉 {ajout_count} participants ont été ajoutés avec succès !"
-        )
+        st.success(f"🎉 {ajoutes} participants ajoutés avec succès !")
         st.rerun()
 
-  # ONGLET 2 : GESTION CLASSIQUE
+    # Formulaire rapide pour ajouter un refusé
+    st.markdown("---")
+    st.subheader("🛑 Enregistrer un refus")
+    with st.form("form_refus"):
+      c_ref1, c_ref2 = st.columns(2)
+      n_ref = c_ref1.text_input("Nom de la personne")
+      r_ref = c_ref2.text_input("Raison (ex: Organisateur)")
+      if st.form_submit_button("Ajouter aux refusés") and n_ref:
+        data["participants_refuses"].append({"nom": n_ref, "raison": r_ref})
+        save_data(data)
+        st.success("Refus enregistré !")
+        st.rerun()
+
   with tab2:
-    st.subheader("👥 Gérer les participants et refus")
-    col_a, col_b = st.columns(2)
-
-    with col_a:
-      st.write("### Validés")
-      if data["participants_acceptes"]:
-        for i, p in enumerate(data["participants_acceptes"]):
-          c1, c2 = st.columns([4, 1])
-          c1.write(f"👤 {p}")
-          if c2.button("❌", key=f"del_acc_{i}"):
-            data["participants_acceptes"].pop(i)
-            save_data(data)
-            st.rerun()
-      else:
-        st.write("Aucun participant.")
-
-    with col_b:
-      st.write("### Refusés")
-      if data["participants_refuses"]:
-        for i, r in enumerate(data["participants_refuses"]):
-          c1, c2 = st.columns([4, 1])
-          c1.write(f"🛑 {r['nom']} (*{r['raison']}*)")
-          if c2.button("❌", key=f"del_ref_{i}"):
-            data["participants_refuses"].pop(i)
-            save_data(data)
-            st.rerun()
-      else:
-        st.write("Aucun refus.")
-
-      st.markdown("---")
-      with st.form("add_refused_solo"):
-        n_ref = st.text_input("Refuser un nom précis")
-        r_ref = st.text_input("Raison du refus")
-        if st.form_submit_button("Enregistrer le refus") and n_ref:
-          data["participants_refuses"].append({"nom": n_ref, "raison": r_ref})
-          save_data(data)
-          st.rerun()
-
-  # ONGLET 3 : LANCER LE TIRAGE
-  with tab3:
     st.subheader("🎰 Animation du Tirage au Sort")
     if data["participants_acceptes"]:
       st.write(
-          f"Nombre de participants éligibles :"
+          f"Nombre de participants en lice :"
           f" {len(data['participants_acceptes'])}"
       )
 
@@ -253,13 +150,9 @@ else:
         st.success(f"🎉 Le gagnant désigné est : **{gagnant}** !")
         st.rerun()
     else:
-      st.warning(
-          "Il n'y a aucun participant validé pour l'instant pour lancer le"
-          " tirage."
-      )
+      st.warning("Ajoutez des participants dans l'onglet 1 pour lancer le jeu.")
 
-  # ONGLET 4 : RÉINITIALISATION
-  with tab4:
+  with tab3:
     if st.button("🗑️ Réinitialiser complètement le tirage"):
       default_data = {
           "participants_acceptes": [],
@@ -270,3 +163,48 @@ else:
       save_data(default_data)
       st.success("Remis à zéro !")
       st.rerun()
+
+  # --- APERÇU EN DIRECT INTÉGRÉ POUR L'ADMIN ---
+  st.markdown("---")
+  st.header("👀 Aperçu en direct (Ce que voient les participants)")
+
+  # Affichage de l'état actuel pour l'admin
+  etat_actuel = data["etat_tirage"]
+  if etat_actuel == "Termine" and data["gagnant"]:
+    st.success(
+        f"🏆 Gagnant actuel affiché sur le live : **{data['gagnant']}**"
+    )
+  else:
+    st.info(f"État du tirage : **{etat_actuel}**")
+
+  col_prev1, col_prev2 = st.columns(2)
+
+  with col_prev1:
+    st.subheader(
+        f"✅ Validés ({len(data['participants_acceptes'])})"
+    )
+    if data["participants_acceptes"]:
+      for i, p in enumerate(data["participants_acceptes"]):
+        c_a, c_b = st.columns([4, 1])
+        c_a.write(f"👤 {p}")
+        if c_b.button("❌", key=f"del_acc_{i}"):
+          data["participants_acceptes"].pop(i)
+          save_data(data)
+          st.rerun()
+    else:
+      st.write("Aucun participant validé.")
+
+  with col_prev2:
+    st.subheader(
+        f"❌ Refusés ({len(data['participants_refuses'])})"
+    )
+    if data["participants_refuses"]:
+      for i, r in enumerate(data["participants_refuses"]):
+        c_a, c_b = st.columns([4, 1])
+        c_a.write(f"🛑 {r['nom']} (*{r['raison']}*)")
+        if c_b.button("❌", key=f"del_ref_{i}"):
+          data["participants_refuses"].pop(i)
+          save_data(data)
+          st.rerun()
+    else:
+      st.write("Aucun refus.")

@@ -53,6 +53,20 @@ if "is_admin" not in st.session_state:
 
 data = load_data()
 
+# ---------------------------------------------------------
+# ENDPOINT INTERNE POUR L'AUTOMATISATION JAVASCRIPT
+# ---------------------------------------------------------
+# Permet au navigateur de valider le gagnant automatiquement à la fin du chrono
+query_params = st.query_params
+if "auto_winner" in query_params and data["etat_tirage"] == "En attente":
+    nom_gagnant = query_params["auto_winner"]
+    if nom_gagnant in data["participants_acceptes"]:
+        data["etat_tirage"] = "Termine"
+        data["gagnant"] = nom_gagnant
+        save_data(data)
+        st.query_params.clear()
+        st.rerun()
+
 st.title("🎉 Le Grand Tirage au Sort en Direct !")
 st.write("Suivez le tirage en temps réel et découvrez si la chance vous sourit ! 🍀")
 
@@ -87,7 +101,7 @@ else:
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
-    st.info("💡 **Info :** Cette page se met à jour régulièrement pour intégrer les nouveaux participants au fur et à mesure des validations !")
+    st.info("💡 **Info :** Le tirage se lancera automatiquement dès que le compte à rebours arrivera à zéro !")
     
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
@@ -118,7 +132,7 @@ if mode == "Spectateur / Participant":
             </div>
         </div>
         <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-            Tirage au sort prévu à 17h52
+            Tirage au sort automatique à l'échéance
         </div>
 
         <!-- Zone d'Animation Loto (cachée par défaut) -->
@@ -156,7 +170,7 @@ if mode == "Spectateur / Participant":
             document.getElementById("loto-display").style.display = "block";
 
             if (participants.length === 0) {{
-                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré ! (Ajoutez-en dans l'admin)</h3>";
+                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré !</h3>";
                 return;
             }}
 
@@ -166,11 +180,11 @@ if mode == "Spectateur / Participant":
                 document.getElementById("ball").innerText = participants[randomIndex];
                 counter++;
                 
-                if (counter > 15) {{
+                if (counter > 20) {{
                     clearInterval(animInterval);
-                    showWinnerUI(winnerName || participants[0]);
+                    showWinnerUI(winnerName);
                 }}
-            }}, 200);
+            }}, 150);
         }}
 
         if (etatAdmin === "Termine" && gagnantAdmin) {{
@@ -190,7 +204,15 @@ if mode == "Spectateur / Participant":
                     document.getElementById("seconds").innerText = "0";
                     
                     if (participants.length > 0) {{
-                        lancerAnimationLoto(participants[Math.floor(Math.random() * participants.length)]);
+                        // Choisit un gagnant de manière unique et déclenche la sauvegarde automatique via l'URL
+                        const randomIndex = Math.floor(Math.random() * participants.length);
+                        const selectedWinner = participants[randomIndex];
+                        
+                        lancerAnimationLoto(selectedWinner);
+                        
+                        setTimeout(function() {{
+                            window.location.search = "?auto_winner=" + encodeURIComponent(selectedWinner);
+                        }, 3500);
                     }} else {{
                         document.getElementById("countdown-text").innerText = "Temps écoulé ! Aucun participant.";
                     }}
@@ -206,6 +228,13 @@ if mode == "Spectateur / Participant":
                     document.getElementById("seconds").innerText = seconds;
                 }}
             }}, 1000);
+            
+            // Rafraîchissement régulier pour les spectateurs si l'admin a déclenché manuellement
+            setTimeout(function() {{
+                if (etatAdmin === "En attente") {{
+                    window.location.reload();
+                }}
+            }, 6000);
         }}
     </script>
     """
@@ -219,47 +248,38 @@ if mode == "Spectateur / Participant":
     elif etat == "En cours":
         st.warning("🎰 **Le tirage est en cours en direct !**")
     else:
-        st.warning("⏳ Le tirage va bientôt commencer... Restez connectés !")
+        st.warning("⏳ En attente du compte à rebours... Restez connectés !")
         
     st.markdown("---")
     
-    # Affichage des participants sur 3 colonnes et triés par ordre alphabétique
     nb_participants = len(data["participants_acceptes"])
     st.subheader(f"✅ Participants Validés ({nb_participants})")
     
     if data["participants_acceptes"]:
         participants_tries = sorted(data["participants_acceptes"], key=lambda x: x.lower())
-        
         col_p1, col_p2, col_p3 = st.columns(3)
-        
         tiers = len(participants_tries) // 3
         reste = len(participants_tries) % 3
-        
         fin_col1 = tiers + (1 if reste > 0 else 0)
         fin_col2 = fin_col1 + tiers + (1 if reste > 1 else 0)
         
-        col1_items = participants_tries[:fin_col1]
-        col2_items = participants_tries[fin_col1:fin_col2]
-        col3_items = participants_tries[fin_col2:]
-        
         with col_p1:
-            for p in col1_items:
+            for p in participants_tries[:fin_col1]:
                 st.write(f"- 👤 {p}")
         with col_p2:
-            for p in col2_items:
+            for p in participants_tries[fin_col1:fin_col2]:
                 st.write(f"- 👤 {p}")
         with col_p3:
-            for p in col3_items:
+            for p in participants_tries[fin_col2:]:
                 st.write(f"- 👤 {p}")
     else:
-        st.write("Aucun participant validé pour le moment. (Pensez à en ajouter dans l'espace admin !)")
+        st.write("Aucun participant validé pour le moment.")
         
     st.markdown("---")
     nb_refuses = len(data["participants_refuses"])
     st.subheader(f"❌ Inscriptions Refusées ({nb_refuses})")
     if data["participants_refuses"]:
-        refuses_tries = sorted(data["participants_refuses"], key=lambda x: x['nom'].lower())
-        for r in refuses_tries:
+        for r in sorted(data["participants_refuses"], key=lambda x: x['nom'].lower()):
             st.write(f"- 🛑 **{r['nom']}** (*Raison : {r['raison']}*)")
     else:
         st.write("Aucun refus.")
@@ -316,7 +336,6 @@ else:
 
     with tab2:
         st.subheader("🧪 Test à blanc de l'animation")
-        st.write("Testez l'animation des boules de loto et le TADAM directement ici.")
         if st.button("🧪 LANCER UN TEST À BLANC"):
             if data["participants_acceptes"]:
                 st.info("🎰 Mélange des boules magiques...")
@@ -331,31 +350,19 @@ else:
                 st.success(f"🧪 **[TEST À BLANC] TADAM ! Le gagnant simulé est : {gagnant_test}** 🥳")
                 st.balloons()
             else:
-                st.warning("Ajoutez d'abord des participants pour faire tourner les boules !")
+                st.warning("Ajoutez d'abord des participants !")
 
         st.markdown("---")
-        st.subheader("🎲 Lancer le Vrai Tirage Officiel")
+        st.subheader("🎲 Lancer le Vrai Tirage Manuel ou Vérifier l'État")
         if data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
                 gagnant = random.choice(data["participants_acceptes"])
-                data["etat_tirage"] = "En cours"
+                data["etat_tirage"] = "Termine"
                 data["gagnant"] = gagnant
                 save_data(data)
-                
-                with st.spinner("Suspense... Les boules tournent dans le boulier ! 🪄"):
-                    placeholder = st.empty()
-                    for _ in range(15):
-                        temp_winner = random.choice(data["participants_acceptes"])
-                        placeholder.markdown(f"<h3 style='text-align: center; color: #f59e0b;'>🎰 Tirage... {temp_winner}</h3>", unsafe_allow_html=True)
-                        time.sleep(0.25)
-                    placeholder.empty()
-                
-                data["etat_tirage"] = "Termine"
-                save_data(data)
-                
                 st.balloons()
-                st.success(f"🏆 Le grand gagnant officiel est : **{gagnant}** !")
+                st.success(f"🏆 Le grand gagnant est : **{gagnant}** !")
                 st.rerun()
         else:
             st.warning("Ajoutez des participants d'abord.")
@@ -366,12 +373,11 @@ else:
                 data["etat_tirage"] = "En attente"
                 data["gagnant"] = None
                 save_data(data)
-                st.success("Tirage réinitialisé ! Le gagnant a été effacé.")
+                st.success("Tirage réinitialisé !")
                 st.rerun()
 
     with tab3:
         st.subheader("🗑️ Gestion et Réinitialisation")
-        
         if st.button("🗑️ Tout effacer (Participants + Refus + Gagnant)"):
             default_data = {
                 "participants_acceptes": [],
@@ -384,11 +390,9 @@ else:
             st.rerun()
 
         st.markdown("---")
-        st.markdown("##### Suppression ciblée")
         with st.expander("Gérer / Supprimer des participants validés"):
             if data["participants_acceptes"]:
-                admin_participants_tries = sorted(data["participants_acceptes"], key=lambda x: x.lower())
-                for p in admin_participants_tries:
+                for p in sorted(data["participants_acceptes"], key=lambda x: x.lower()):
                     c_a, c_b = st.columns([3, 1])
                     c_a.write(f"👤 {p}")
                     if c_b.button("❌", key=f"del_acc_{p}"):
@@ -411,7 +415,7 @@ else:
                 st.write("Aucun refus.")
 
 # ---------------------------------------------------------
-# PIED DE PAGE (FOOTER) AVEC LIENS CLIQUABLES
+# PIED DE PAGE (FOOTER)
 # ---------------------------------------------------------
 st.markdown("---")
 st.markdown("""

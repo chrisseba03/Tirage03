@@ -4,6 +4,7 @@ import random
 import time
 from datetime import datetime, timezone, timedelta
 import streamlit as st
+import streamlit.components.v1 as components
 
 DATA_FILE = "tirage_data.json"
 VISITS_FILE = "visits_count.json"
@@ -25,7 +26,6 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# Gestion simple du compteur de visites pour l'admin
 def track_visit():
     visits = 1
     if os.path.exists(VISITS_FILE):
@@ -38,7 +38,6 @@ def track_visit():
         json.dump({"count": visits}, f)
     return visits
 
-# Incrémentation unique par session
 if "visited" not in st.session_state:
     st.session_state["visited"] = True
     st.session_state["visit_count"] = track_visit()
@@ -61,38 +60,62 @@ mode = st.sidebar.radio("Je suis :", ["Spectateur / Participant", "Administrateu
 if mode == "Spectateur / Participant":
     st.info("💡 **Info :** Cette page se met à jour régulièrement pour intégrer les nouveaux participants au fur et à mesure des validations !")
     
-    # Compte à rebours dynamique jusqu'au 4 octobre 2026 à 20h00
+    # Compte à rebours dynamique en blocs (Style Jours / Heures / Minutes / Secondes)
     st.markdown("---")
-    col_chrono1, col_chrono2, col_chrono3 = st.columns([1, 3, 1])
-    with col_chrono2:
-        st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage</h3>", unsafe_allow_html=True)
-        
-        # Date cible : 4 octobre 2026 à 20:00 (heure de Paris / UTC+2)
-        # On fixe une timezone approximative pour la France (UTC+2 en octobre)
-        tz_france = timezone(timedelta(hours=2))
-        cible = datetime(2026, 10, 4, 20, 0, 0, tzinfo=tz_france)
-        maintenant = datetime.now(tz_france)
-        
-        delta = cible - maintenant
-        
-        if delta.total_seconds() > 0:
-            jours = delta.days
-            heures, reste = divmod(delta.seconds, 3600)
-            minutes, secondes = divmod(reste, 60)
-            
-            st.markdown(f"""
-            <div style="text-align: center; font-size: 20px; font-weight: bold; background-color: #f0f2f6; padding: 10px; border-radius: 10px;">
-                ⌛ {jours} jours, {heures}h {minutes}m {secondes}s restants<br>
-                <span style="font-size: 14px; color: gray;">Fermeture et tirage le Dimanche 4 octobre à 20h00</span>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style="text-align: center; font-size: 20px; font-weight: bold; background-color: #ffcccc; padding: 10px; border-radius: 10px;">
-                🚨 Les inscriptions sont closes ! Le tirage est imminent !
-            </div>
-            """, unsafe_allow_html=True)
-            
+    st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage</h3>", unsafe_allow_html=True)
+    
+    # Code HTML + JS pour le compte à rebours fluide en direct (Objectif : 4 octobre 2026 à 20:00:00)
+    countdown_html = """
+    <div style="display: flex; justify-content: center; gap: 15px; text-align: center; font-family: sans-serif; margin-bottom: 10px;">
+        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <span id="days" style="font-size: 26px; font-weight: bold; display: block;">0</span>
+            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Jours</span>
+        </div>
+        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <span id="hours" style="font-size: 26px; font-weight: bold; display: block;">0</span>
+            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Heures</span>
+        </div>
+        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <span id="minutes" style="font-size: 26px; font-weight: bold; display: block;">0</span>
+            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Min</span>
+        </div>
+        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <span id="seconds" style="font-size: 26px; font-weight: bold; display: block; color: #38bdf8;">0</span>
+            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Sec</span>
+        </div>
+    </div>
+    <div style="text-align: center; font-size: 14px; color: gray; margin-bottom: 10px;">
+        Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00
+    </div>
+
+    <script>
+        const countDownDate = new Date("October 4, 2026 20:00:00").getTime();
+
+        const x = setInterval(function() {
+            const now = new Date().getTime();
+            const distance = countDownDate - now;
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById("days").innerText = days;
+            document.getElementById("hours").innerText = hours;
+            document.getElementById("minutes").innerText = minutes;
+            document.getElementById("seconds").innerText = seconds;
+
+            if (distance < 0) {
+                clearInterval(x);
+                document.getElementById("days").innerText = "0";
+                document.getElementById("hours").innerText = "0";
+                document.getElementById("minutes").innerText = "0";
+                document.getElementById("seconds").innerText = "0";
+            }
+        }, 1000);
+    </script>
+    """
+    components.html(countdown_html, height=110)
     st.markdown("---")
 
     etat = data["etat_tirage"]
@@ -208,7 +231,6 @@ else:
                 st.success("Remis à zéro !")
                 st.rerun()
 
-        # Suppression rapide
         st.markdown("---")
         st.markdown("##### 🗑️ Suppression rapide")
         with st.expander("Gérer / Supprimer des participants validés"):

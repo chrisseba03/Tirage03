@@ -57,30 +57,33 @@ if "is_admin" not in st.session_state:
     st.session_state["is_admin"] = False
 
 # ---------------------------------------------------------
-# POINT DE CONTRÔLE SÉCURISÉ (ENDPOINT INTERNE DE TIRAGE)
+# POINT DE CONTRÔLE SÉCURISÉ (ENREGISTREMENT DU GAGNANT EXACT)
 # ---------------------------------------------------------
 query_params = st.query_params
 if "action" in query_params and query_params["action"] == "execute_draw":
     data_live = load_data()
-    # VÉRIFICATION INCONTESTABLE : Si aucun gagnant n'a encore été désigné et qu'il y a des participants
     if not data_live["gagnant"] and data_live["participants_acceptes"]:
-        gagnant_officiel = random.choice(data_live["participants_acceptes"])
-        data_live["gagnant"] = gagnant_officiel
+        # On récupère LE nom exact sur lequel l'animation s'est arrêtée
+        gagnant_recu = query_params.get("winner", None)
+        if gagnant_recu and gagnant_recu in data_live["participants_acceptes"]:
+            data_live["gagnant"] = gagnant_recu
+        else:
+            # Sécurité de secours si le paramètre est absent
+            data_live["gagnant"] = data_live["participants_acceptes"][0]
+            
         data_live["etat_tirage"] = "Termine"
         save_data(data_live)
     
-    # Nettoyage des paramètres URL pour repartir sur une URL propre
     st.query_params.clear()
     st.rerun()
 
-# Chargement des données actuelles pour l'affichage
 data = load_data()
 
 st.title("🎉 Le Grand Tirage au Sort en Direct")
 st.write("Bienvenue sur le direct officiel ! Suivez le tirage au sort de chez vous en toute transparence. 🍀")
 
 # ---------------------------------------------------------
-# BARRE LATÉRALE - ESPACE ADMIN SÉCURISÉ
+# BARRE LATÉRALE - ESPACE ADMIN
 # ---------------------------------------------------------
 st.sidebar.header("⚙️ Espace Sécurisé")
 
@@ -97,7 +100,6 @@ if not st.session_state["is_admin"]:
                 st.rerun()
             else:
                 st.error("Mot de passe incorrect.")
-    
     mode_actuel = "Public"
 else:
     st.sidebar.success("🔒 Mode Administrateur Actif")
@@ -107,7 +109,7 @@ else:
     mode_actuel = "Admin"
 
 # ---------------------------------------------------------
-# AFFICHAGE PRINCIPAL : SI LE GAGNANT EXISTE DÉJÀ (VERROUILLÉ)
+# AFFICHAGE DU RÉSULTAT FINAL (VERROUILLÉ)
 # ---------------------------------------------------------
 if data["gagnant"] or data["etat_tirage"] == "Termine":
     st.balloons()
@@ -119,21 +121,19 @@ if data["gagnant"] or data["etat_tirage"] == "Termine":
     </div>
     """, unsafe_allow_html=True)
     
-    st.success("🔒 **Tirage verrouillé par le système.** Même en actualisant la page, ce résultat est immuable.")
+    st.success("🔒 **Tirage verrouillé par le système.** Même en actualisant la page 100 fois, ce résultat est immuable.")
 
 # ---------------------------------------------------------
-# AFFICHAGE PRINCIPAL : EN ATTENTE DU TIRAGE (COMPTE À REBOURS + LIVE)
+# EN ATTENTE DU TIRAGE (COMPTE À REBOURS + ANIMATION UNIQUE)
 # ---------------------------------------------------------
 else:
-    st.info("💡 **Le saviez-vous ?** Le compte à rebours ci-dessous est synchronisé. À 18h52, l'animation se lancera automatiquement pour désigner le vainqueur sous vos yeux !")
+    st.info("💡 **Le saviez-vous ?** Le compte à rebours ci-dessous est synchronisé. À l'heure dite, l'animation désignera le vainqueur sous vos yeux !")
     st.markdown("---")
     
     participants_json = json.dumps(data["participants_acceptes"], ensure_ascii=False)
     
-    # Composant HTML/JS totalement autonome pour le live type FDJ
     live_animation_html = f"""
     <div style="text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 10px;">
-        <!-- Compte à rebours -->
         <div id="countdown-box" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;">
             <div style="background: #1e293b; color: white; padding: 12px; border-radius: 8px; min-width: 65px;">
                 <span id="days" style="font-size: 22px; font-weight: bold; display: block;">0</span>
@@ -156,7 +156,6 @@ else:
             En attente de l'heure du tirage (18h52)...
         </div>
 
-        <!-- Sphère de tirage animée (style Loto/FDJ) -->
         <div id="loto-container" style="display: none; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
             <h3 style="margin: 0 0 15px 0; font-size: 20px; letter-spacing: 1px;">🎰 TIRAGE AU SORT EN COURS...</h3>
             <div id="loto-ball" style="margin: 0 auto; width: 130px; height: 130px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; text-align: center; padding: 10px; box-shadow: inset 0 5px 10px rgba(255,255,255,0.7), 0 8px 15px rgba(0,0,0,0.3); word-break: break-word;">
@@ -167,7 +166,6 @@ else:
 
     <script>
         const participants = {participants_json};
-        // Date cible du tirage : 25 septembre 2026 à 18h52:00
         const targetTime = new Date("September 25, 2026 18:52:00").getTime();
         let animationTriggered = false;
 
@@ -186,23 +184,23 @@ else:
                     if (animationTriggered) return;
                     animationTriggered = true;
 
-                    // Masquer le compte à rebours et afficher la boule de tirage
                     document.getElementById("countdown-box").style.display = "none";
                     document.getElementById("status-text").style.display = "none";
                     document.getElementById("loto-container").style.display = "block";
 
                     let counter = 0;
-                    // Effet de roulement de tambour pendant ~3.5 secondes
+                    let selectedWinner = "";
+                    
                     const spinInterval = setInterval(function() {{
-                        const randomName = participants[Math.floor(Math.random() * participants.length)];
-                        document.getElementById("loto-ball").innerText = randomName;
+                        selectedWinner = participants[Math.floor(Math.random() * participants.length)];
+                        document.getElementById("loto-ball").innerText = selectedWinner;
                         counter++;
                         
                         if (counter > 22) {{
                             clearInterval(spinInterval);
-                            // Redirection propre vers le point de validation sécurisé du serveur
+                            // TRANSMISSION DIRECTE DU GAGNANT EXACT VISUEL AU SERVEUR
                             const cleanBaseUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                            window.top.location.href = cleanBaseUrl + "?action=execute_draw";
+                            window.top.location.href = cleanBaseUrl + "?action=execute_draw&winner=" + encodeURIComponent(selectedWinner);
                         }}
                     }}, 150);
                 }} else {{
@@ -225,7 +223,7 @@ else:
     components.html(live_animation_html, height=225)
 
 # ---------------------------------------------------------
-# LISTE PUBLIQUE DES PARTICIPANTS VALIDÉS & REFUSÉS
+# LISTES PUBLIQUE
 # ---------------------------------------------------------
 st.markdown("---")
 col_g1, col_g2 = st.columns(2)
@@ -252,7 +250,7 @@ if st.button("🔄 Rafraîchir la page"):
     st.rerun()
 
 # ---------------------------------------------------------
-# PANNEAU ADMINISTRATEUR COMPLET (UNIQUEMENT ACCESSIBLE SI CONNECTÉ)
+# PANNEAU ADMIN
 # ---------------------------------------------------------
 if mode_actuel == "Admin":
     st.markdown("---")
@@ -261,31 +259,27 @@ if mode_actuel == "Admin":
     tab_add, tab_test, tab_reset = st.tabs(["📝 Gestion des Participants", "🎲 Actions & Tests", "🗑️ Réinitialisation"])
     
     with tab_add:
-        st.subheader("➕ Ajouter des participants en masse")
-        noms_input = st.text_area("Collez les noms (un par ligne) :", height=140, placeholder="Jean Dupont\nMarie Curie...")
+        st.subheader("➕ Ajouter des participants")
+        noms_input = st.text_area("Collez les noms (un par ligne) :", height=140)
         if st.button("Enregistrer les nouveaux participants"):
             if noms_input.strip():
                 cur_data = load_data()
                 lignes = noms_input.split("\n")
                 added = 0
-                duplicates = 0
                 for ligne in lignes:
                     nom = ligne.strip()
-                    if nom:
-                        if nom not in cur_data["participants_acceptes"]:
-                            cur_data["participants_acceptes"].append(nom)
-                            added += 1
-                        else:
-                            duplicates += 1
+                    if nom and nom not in cur_data["participants_acceptes"]:
+                        cur_data["participants_acceptes"].append(nom)
+                        added += 1
                 save_data(cur_data)
-                st.success(f"✅ {added} participant(s) ajouté(s) avec succès ! ({duplicates} doublon(s) ignoré(s))")
+                st.success(f"✅ {added} participant(s) ajouté(s) !")
                 st.rerun()
                 
         st.markdown("---")
         st.subheader("🛑 Enregistrer un refus")
         with st.form("refus_form"):
-            ref_nom = st.text_input("Nom de la personne refusée")
-            ref_raison = st.text_input("Motif du refus (ex: Hors délai, Organisateur...)")
+            ref_nom = st.text_input("Nom")
+            ref_raison = st.text_input("Motif")
             if st.form_submit_button("Ajouter aux refus") and ref_nom:
                 cur_data = load_data()
                 cur_data["participants_refuses"].append({"nom": ref_nom, "raison": ref_raison})
@@ -294,26 +288,7 @@ if mode_actuel == "Admin":
                 st.rerun()
 
     with tab_test:
-        st.subheader("🧪 Test à blanc de l'animation")
-        st.write("Testez l'animation du tirage sans toucher aux données officielles.")
-        if st.button("Lancer un test visuel à blanc"):
-            cur_data = load_data()
-            if cur_data["participants_acceptes"]:
-                placeholder = st.empty()
-                for _ in range(10):
-                    t_win = random.choice(cur_data["participants_acceptes"])
-                    placeholder.markdown(f"<h3 style='text-align: center; color: #2563eb;'>🌀 Simulation en cours : {t_win}</h3>", unsafe_allow_html=True)
-                    import time
-                    time.sleep(0.15)
-                sim_win = random.choice(cur_data["participants_acceptes"])
-                placeholder.empty()
-                st.success(f"🧪 Résultat du test à blanc : **{sim_win}** 🎉")
-            else:
-                st.warning("Veuillez d'abord ajouter des participants.")
-
-        st.markdown("---")
         st.subheader("⚡ Forcer le Vrai Tirage Immédiatement")
-        st.write("Si vous souhaitez déclencher le tirage officiel avant l'heure prévue :")
         cur_data = load_data()
         if cur_data["participants_acceptes"]:
             if st.button("🎲 DÉCLENCHER LE TIRAGE OFFICIEL MAINTENANT"):
@@ -325,7 +300,7 @@ if mode_actuel == "Admin":
                     st.success(f"🏆 Gagnant officiel désigné : {gagnant_force}")
                     st.rerun()
         else:
-            st.warning("Ajoutez des participants avant de lancer le tirage.")
+            st.warning("Ajoutez des participants avant.")
 
     with tab_reset:
         st.subheader("🗑️ Remise à zéro")
@@ -336,11 +311,11 @@ if mode_actuel == "Admin":
                 cur_data["gagnant"] = None
                 cur_data["etat_tirage"] = "En attente"
                 save_data(cur_data)
-                st.success("Jeu réinitialisé, prêt pour un nouveau tirage !")
+                st.success("Jeu réinitialisé !")
                 st.rerun()
             st.markdown("---")
             
-        if st.button("🗑️ Effacer TOUTES les données (Participants, refus, gagnant)"):
+        if st.button("🗑️ Effacer TOUTES les données"):
             reset_data = {
                 "participants_acceptes": [],
                 "participants_refuses": [],
@@ -348,29 +323,12 @@ if mode_actuel == "Admin":
                 "etat_tirage": "En attente"
             }
             save_data(reset_data)
-            st.success("Remise à zéro complète effectuée.")
+            st.success("Remise à zéro complète.")
             st.rerun()
 
-        st.markdown("---")
-        with st.expander("Gérer / Supprimer des participants unitaires"):
-            if cur_data["participants_acceptes"]:
-                for p in sorted(cur_data["participants_acceptes"], key=lambda x: x.lower()):
-                    col_a, col_b = st.columns([3, 1])
-                    col_a.write(f"👤 {p}")
-                    if col_b.button("Supprimer", key=f"del_p_{p}"):
-                        cur_data["participants_acceptes"].remove(p)
-                        save_data(cur_data)
-                        st.rerun()
-            else:
-                st.write("Aucun participant.")
-
-# ---------------------------------------------------------
-# PIED DE PAGE OFFICIEL
-# ---------------------------------------------------------
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; padding: 15px; font-size: 13px; color: #64748b; background-color: #1e293b; border-radius: 10px; margin-top: 30px;">
-    Application officielle développée par <a href="https://www.facebook.com/profile.php?id=100073514276062" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: bold;">Seb Capturis</a> 
-    pour le groupe <a href="https://www.facebook.com/groups/bouce/" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: bold;">La Place du Village - ALLIER (03)</a> 🌲🏡
+    Application officielle développée par Seb Capturis pour le groupe La Place du Village - ALLIER (03) 🌲🏡
 </div>
 """, unsafe_allow_html=True)

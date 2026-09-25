@@ -2,7 +2,7 @@ import json
 import os
 import random
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -11,10 +11,6 @@ VISITS_FILE = "visits_count.json"
 
 ADMIN_PASSWORD = "admin170767"
 
-# Heure officielle du tirage automatique (modifiable ou fixée ici)
-# Format : datetime (par exemple, aujourd'hui à 16:40)
-# Vous pouvez aussi stocker cela dans le JSON pour le modifier depuis l'admin si besoin.
-
 def load_data():
     if not os.path.exists(DATA_FILE):
         default_data = {
@@ -22,14 +18,14 @@ def load_data():
             "participants_refuses": [],
             "gagnant": None,
             "etat_tirage": "En attente",
-            "heure_tirage": "2026-09-25 16:40:00" # Heure cible par défaut modifiable
+            "heure_tirage": "2026-09-25 16:45:00" # Heure cible par défaut
         }
         save_data(default_data)
         return default_data
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
         if "heure_tirage" not in data:
-            data["heure_tirage"] = "2026-09-25 16:40:00"
+            data["heure_tirage"] = "2026-09-25 16:45:00"
         return data
 
 def save_data(data):
@@ -61,12 +57,12 @@ if "is_admin" not in st.session_state:
 
 data = load_data()
 
-# --- VÉRIFICATION AUTOMATIQUE DU TEMPS CIBLE ---
+# --- DECLENCHEMENT AUTOMATIQUE PAR PYTHON ---
+# Si le statut est en attente ET que l'heure actuelle a dépassé l'heure cible
 try:
     target_dt = datetime.strptime(data["heure_tirage"], "%Y-%m-%d %H:%M:%S")
     now_dt = datetime.now()
     if data["etat_tirage"] == "En attente" and now_dt >= target_dt and data["participants_acceptes"]:
-        # Le temps est écoulé : on déclenche le tirage automatiquement !
         gagnant_auto = random.choice(data["participants_acceptes"])
         data["etat_tirage"] = "Termine"
         data["gagnant"] = gagnant_auto
@@ -113,14 +109,12 @@ if mode == "Spectateur / Participant":
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
     
-    participants_js = json.dumps(data["participants_acceptes"], ensure_ascii=False)
     gagnant_actuel = data["gagnant"] if data["gagnant"] else ""
     etat_actuel = data["etat_tirage"]
-    string_heure_js = data["heure_tirage"].replace(" ", "T") # Format ISO pour JS
+    string_heure_js = data["heure_tirage"].replace(" ", "T")
 
     live_html = f"""
     <div id="container" style="text-align: center; font-family: sans-serif; padding: 5px;">
-        <!-- Compte à rebours fluide -->
         <div id="countdown-box" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 10px;">
             <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
                 <span id="days" style="font-size: 22px; font-weight: bold; display: block;">0</span>
@@ -143,7 +137,6 @@ if mode == "Spectateur / Participant":
             En attente du tirage officiel
         </div>
 
-        <!-- Résultat final si déjà tiré -->
         <div id="winner-box" style="display: none; background: #d1fae5; color: #065f46; padding: 15px; border-radius: 10px; border: 2px solid #34d399;">
             <h2 style="margin: 0; font-size: 18px;">🏆 TADAM ! Le grand gagnant est :</h2>
             <p id="winner-name" style="font-size: 22px; font-weight: bold; margin: 5px 0 0 0;"></p>
@@ -175,9 +168,12 @@ if mode == "Spectateur / Participant":
                     document.getElementById("hours").innerText = "0";
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
-                    document.getElementById("countdown-text").innerText = "⏰ Temps écoulé ! Actualisation imminente du gagnant...";
-                    // Rafraîchir automatiquement la page pour déclencher l'affichage du gagnant calculé par Python
-                    setTimeout(function() {{ window.location.reload(); }}, 2000);
+                    document.getElementById("countdown-text").innerText = "⏰ Temps écoulé ! Lancement du tirage...";
+                    
+                    // Force le rechargement immédiat de la page Streamlit pour déclencher le tirage Python
+                    setTimeout(function() {{
+                        window.parent.location.reload();
+                    }}, 1000);
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -269,7 +265,6 @@ else:
         st.subheader("⏰ Configurer l'heure du tirage automatique")
         st.write(f"Heure actuelle enregistrée : `{data['heure_tirage']}`")
         
-        # Formulaire simple pour changer l'heure cible si besoin
         nouvelle_heure = st.text_input("Modifier l'heure (Format AAAA-MM-JJ HH:MM:SS)", value=data["heure_tirage"])
         if st.button("Enregistrer la nouvelle heure cible"):
             data["heure_tirage"] = nouvelle_heure
@@ -311,7 +306,7 @@ else:
                 "participants_refuses": [],
                 "gagnant": None,
                 "etat_tirage": "En attente",
-                "heure_tirage": "2026-09-25 16:40:00"
+                "heure_tirage": "2026-09-25 16:45:00"
             }
             save_data(default_data)
             st.success("Remis à zéro complet !")

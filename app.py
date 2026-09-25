@@ -8,7 +8,6 @@ import streamlit as st
 DATA_FILE = "tirage_data.json"
 VISITS_FILE = "visits_count.json"
 
-# MOT DE PASSE ADMINISTRATEUR MIS À JOUR
 ADMIN_PASSWORD = "admin170767"
 
 def load_data():
@@ -36,7 +35,7 @@ def track_visit():
                 visits = json.load(f).get("count", 1) + 1
         except:
             pass
-    with open(VISITS_FILE, "w", encoding="utf-8") as f:
+    with open(VISITS_FILE, "w") as f:
         json.dump({"count": visits}, f)
     return visits
 
@@ -243,9 +242,19 @@ else:
             else:
                 st.warning("Ajoutez des participants d'abord.")
 
+            # Nouveau bouton pour effacer le gagnant et refaire des tests
+            st.markdown("---")
+            if data["etat_tirage"] == "Termine":
+                if st.button("🔄 Effacer le gagnant / Réinitialiser le tirage"):
+                    data["etat_tirage"] = "En attente"
+                    data["gagnant"] = None
+                    save_data(data)
+                    st.success("Tirage réinitialisé ! Le gagnant a été effacé.")
+                    st.rerun()
+
         with tab3:
-            st.markdown("##### Réinitialisation")
-            if st.button("🗑️ Tout effacer / Reset"):
+            st.markdown("##### Réinitialisation complète")
+            if st.button("🗑️ Tout effacer (Participants + Refus + Gagnant)"):
                 default_data = {
                     "participants_acceptes": [],
                     "participants_refuses": [],
@@ -253,7 +262,7 @@ else:
                     "etat_tirage": "En attente"
                 }
                 save_data(default_data)
-                st.success("Remis à zéro !")
+                st.success("Remis à zéro complet !")
                 st.rerun()
 
         st.markdown("---")

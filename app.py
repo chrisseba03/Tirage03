@@ -12,7 +12,6 @@ VISITS_FILE = "visits_count.json"
 ADMIN_PASSWORD = "admin170767"
 
 def load_data():
-    # Désactivation du cache Streamlit pour forcer la lecture du fichier disque à chaque fois
     if not os.path.exists(DATA_FILE):
         default_data = {
             "participants_acceptes": [],
@@ -64,14 +63,13 @@ if "is_admin" not in st.session_state:
 data = load_data()
 
 # ---------------------------------------------------------
-# ENDPOINT INTERNE : VERROUILLAGE DU TIRAGE CÔTÉ SERVEUR
+# ENDPOINT INTERNE : VERROUILLAGE STRICT CÔTÉ SERVEUR
 # ---------------------------------------------------------
 query_params = st.query_params
 if "trigger_draw" in query_params:
-    # Rechargement frais pour éviter les conflits de dernière seconde
     data_fresh = load_data()
-    if data_fresh["etat_tirage"] == "En attente" and data_fresh["participants_acceptes"]:
-        # Choix aléatoire unique basé sur les participants du fichier
+    # SÉCURITÉ ABSOLUE : Si le tirage n'est pas encore terminé, on l'exécute UNE SEULE FOIS et on fige
+    if data_fresh["etat_tirage"] != "Termine" and data_fresh["participants_acceptes"]:
         gagnant = random.choice(data_fresh["participants_acceptes"])
         data_fresh["etat_tirage"] = "Termine"
         data_fresh["gagnant"] = gagnant
@@ -114,10 +112,10 @@ else:
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
-    # On rafraîchit l'état depuis le fichier pour voir si une autre machine a tiré le gagnant
     data = load_data()
     etat_actuel = data["etat_tirage"]
     
+    # SI LE TIRAGE EST TERMINÉ, ON BLOQUE L'AFFICHAGE DÉFINITIVEMENT SUR CE RÉSULTAT
     if etat_actuel == "Termine" and data["gagnant"]:
         st.balloons()
         st.markdown(f"""
@@ -128,10 +126,10 @@ if mode == "Spectateur / Participant":
         </div>
         """, unsafe_allow_html=True)
         
-        st.info("🔒 **Le tirage est terminé et le résultat est définitivement verrouillé.** Le même gagnant s'affiche partout sur tous vos appareils.")
+        st.info("🔒 **Le tirage est terminé et le résultat est définitivement verrouillé.** Même si vous actualisez la page, ce gagnant restera affiché sur tous vos appareils.")
 
     else:
-        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h37 dès que le compte à rebours arrivera à zéro !")
+        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h43 dès que le compte à rebours arrivera à zéro !")
         st.markdown("---")
         st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
         
@@ -159,7 +157,7 @@ if mode == "Spectateur / Participant":
                 </div>
             </div>
             <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-                Tirage au sort automatique à l'échéance (18h37)
+                Tirage au sort automatique à l'échéance (18h43)
             </div>
 
             <!-- Zone d'Animation Loto -->
@@ -173,7 +171,7 @@ if mode == "Spectateur / Participant":
 
         <script>
             const participants = {participants_js};
-            const countDownDate = new Date("September 25, 2026 18:37:00").getTime();
+            const countDownDate = new Date("September 25, 2026 18:43:00").getTime();
             let animationLancee = false;
 
             const x = setInterval(function() {{
@@ -337,12 +335,13 @@ else:
         if current_data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(current_data['participants_acceptes'])}")
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
-                gagnant = random.choice(current_data["participants_acceptes"])
-                current_data["etat_tirage"] = "Termine"
-                current_data["gagnant"] = gagnant
-                save_data(current_data)
+                if current_data["etat_tirage"] != "Termine":
+                    gagnant = random.choice(current_data["participants_acceptes"])
+                    current_data["etat_tirage"] = "Termine"
+                    current_data["gagnant"] = gagnant
+                    save_data(current_data)
                 st.balloons()
-                st.success(f"🏆 Le grand gagnant est : **{gagnant}** !")
+                st.success(f"🏆 Le grand gagnant est : **{current_data['gagnant']}** !")
                 st.rerun()
         else:
             st.warning("Ajoutez des participants d'abord.")

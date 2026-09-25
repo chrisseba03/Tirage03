@@ -138,7 +138,8 @@ if mode == "Spectateur / Participant":
 
     <script>
         const participants = {participants_js};
-        const countDownDate = new Date("October 4, 2026 20:00:00").getTime();
+        // Date modifiée temporairement à ce soir 20h00 pour votre test (À remettre au 4 octobre ensuite)
+        const countDownDate = new Date("September 25, 2026 20:00:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
 
@@ -217,25 +218,47 @@ if mode == "Spectateur / Participant":
         
     st.markdown("---")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        nb_participants = len(data["participants_acceptes"])
-        st.subheader(f"✅ Participants Validés ({nb_participants})")
-        if data["participants_acceptes"]:
-            for p in data["participants_acceptes"]:
+    # Affichage des participants sur 3 colonnes et triés par ordre alphabétique
+    nb_participants = len(data["participants_acceptes"])
+    st.subheader(f"✅ Participants Validés ({nb_participants})")
+    
+    if data["participants_acceptes"]:
+        participants_tries = sorted(data["participants_acceptes"], key=lambda x: x.lower())
+        
+        col_p1, col_p2, col_p3 = st.columns(3)
+        
+        tiers = len(participants_tries) // 3
+        reste = len(participants_tries) % 3
+        
+        fin_col1 = tiers + (1 if reste > 0 else 0)
+        fin_col2 = fin_col1 + tiers + (1 if reste > 1 else 0)
+        
+        col1_items = participants_tries[:fin_col1]
+        col2_items = participants_tries[fin_col1:fin_col2]
+        col3_items = participants_tries[fin_col2:]
+        
+        with col_p1:
+            for p in col1_items:
                 st.write(f"- 👤 {p}")
-        else:
-            st.write("Aucun participant validé pour le moment.")
-            
-    with col2:
-        nb_refuses = len(data["participants_refuses"])
-        st.subheader(f"❌ Inscriptions Refusées ({nb_refuses})")
-        if data["participants_refuses"]:
-            for r in data["participants_refuses"]:
-                st.write(f"- 🛑 **{r['nom']}** (*Raison : {r['raison']}*)")
-        else:
-            st.write("Aucun refus.")
-            
+        with col_p2:
+            for p in col2_items:
+                st.write(f"- 👤 {p}")
+        with col_p3:
+            for p in col3_items:
+                st.write(f"- 👤 {p}")
+    else:
+        st.write("Aucun participant validé pour le moment.")
+        
+    st.markdown("---")
+    nb_refuses = len(data["participants_refuses"])
+    st.subheader(f"❌ Inscriptions Refusées ({nb_refuses})")
+    if data["participants_refuses"]:
+        refuses_tries = sorted(data["participants_refuses"], key=lambda x: x['nom'].lower())
+        for r in refuses_tries:
+            st.write(f"- 🛑 **{r['nom']}** (*Raison : {r['raison']}*)")
+    else:
+        st.write("Aucun refus.")
+        
     if st.button("🔄 Rafraîchir la page"):
         st.rerun()
 
@@ -359,11 +382,12 @@ else:
         st.markdown("##### Suppression ciblée")
         with st.expander("Gérer / Supprimer des participants validés"):
             if data["participants_acceptes"]:
-                for i, p in enumerate(data["participants_acceptes"]):
+                admin_participants_tries = sorted(data["participants_acceptes"], key=lambda x: x.lower())
+                for p in admin_participants_tries:
                     c_a, c_b = st.columns([3, 1])
                     c_a.write(f"👤 {p}")
-                    if c_b.button("❌", key=f"del_acc_{i}"):
-                        data["participants_acceptes"].pop(i)
+                    if c_b.button("❌", key=f"del_acc_{p}"):
+                        data["participants_acceptes"].remove(p)
                         save_data(data)
                         st.rerun()
             else:

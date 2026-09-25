@@ -58,14 +58,12 @@ data = load_data()
 # ---------------------------------------------------------
 query_params = st.query_params
 if "trigger_draw" in query_params:
-    # Le serveur décide du gagnant UNIQUEMENT si le tirage est "En attente"
     if data["etat_tirage"] == "En attente" and data["participants_acceptes"]:
         gagnant = random.choice(data["participants_acceptes"])
         data["etat_tirage"] = "Termine"
         data["gagnant"] = gagnant
         save_data(data)
     
-    # On nettoie l'URL et on recharge la page proprement
     st.query_params.clear()
     st.rerun()
 
@@ -105,7 +103,6 @@ else:
 if mode == "Spectateur / Participant":
     etat_actuel = data["etat_tirage"]
     
-    # SI LE TIRAGE EST TERMINÉ : ON FIGE TOUT ET ON AFFICHE LE GAGNANT
     if etat_actuel == "Termine" and data["gagnant"]:
         st.balloons()
         st.markdown(f"""
@@ -118,9 +115,8 @@ if mode == "Spectateur / Participant":
         
         st.info("🔒 **Le tirage est terminé et le résultat est définitivement verrouillé.** Si vous actualisez la page, le résultat restera le même. Seul l'administrateur peut réinitialiser le jeu.")
 
-    # SI LE TIRAGE EST EN ATTENTE : ON AFFICHE LE COMPTE À REBOURS ET L'ANIMATION
     else:
-        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h30 dès que le compte à rebours arrivera à zéro !")
+        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h34 dès que le compte à rebours arrivera à zéro !")
         st.markdown("---")
         st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
         
@@ -148,7 +144,7 @@ if mode == "Spectateur / Participant":
                 </div>
             </div>
             <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-                Tirage au sort automatique à l'échéance (18h30)
+                Tirage au sort automatique à l'échéance (18h34)
             </div>
 
             <!-- Zone d'Animation Loto -->
@@ -162,7 +158,7 @@ if mode == "Spectateur / Participant":
 
         <script>
             const participants = {participants_js};
-            const countDownDate = new Date("September 25, 2026 18:30:00").getTime();
+            const countDownDate = new Date("September 25, 2026 18:34:00").getTime();
             let animationLancee = false;
 
             const x = setInterval(function() {{
@@ -190,11 +186,10 @@ if mode == "Spectateur / Participant":
                             document.getElementById("ball").innerText = participants[randomIndex];
                             counter++;
                             
-                            // Après ~4 secondes d'animation, on demande au serveur de figer le résultat
                             if (counter > 25) {{
                                 clearInterval(animInterval);
                                 const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                                window.location.href = cleanUrl + "?trigger_draw=true";
+                                window.top.location.href = cleanUrl + "?trigger_draw=true";
                             }}
                         }}, 150);
                     }} else {{
@@ -218,7 +213,6 @@ if mode == "Spectateur / Participant":
         
     st.markdown("---")
     
-    # Affichage des participants en bas de page pour tout le monde
     nb_participants = len(data["participants_acceptes"])
     st.subheader(f"✅ Participants Validés ({nb_participants})")
     

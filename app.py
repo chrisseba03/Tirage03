@@ -100,7 +100,7 @@ else:
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
-    st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h20 dès que le compte à rebours arrivera à zéro !")
+    st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h23 dès que le compte à rebours arrivera à zéro !")
     
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
@@ -131,7 +131,7 @@ if mode == "Spectateur / Participant":
             </div>
         </div>
         <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-            Tirage au sort automatique à l'échéance (18h20)
+            Tirage au sort automatique à l'échéance (18h23)
         </div>
 
         <!-- Zone d'Animation Loto (cachée par défaut) -->
@@ -151,9 +151,10 @@ if mode == "Spectateur / Participant":
 
     <script>
         const participants = {participants_js};
-        const countDownDate = new Date("September 25, 2026 18:20:00").getTime();
+        const countDownDate = new Date("September 25, 2026 18:23:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
+        let animationLancee = false;
 
         function showWinnerUI(winner) {{
             document.getElementById("countdown-box").style.display = "none";
@@ -164,6 +165,9 @@ if mode == "Spectateur / Participant":
         }}
 
         function lancerAnimationLoto(winnerName, callback) {{
+            if (animationLancee) return;
+            animationLancee = true;
+
             document.getElementById("countdown-box").style.display = "none";
             document.getElementById("countdown-text").style.display = "none";
             document.getElementById("loto-display").style.display = "block";
@@ -203,12 +207,13 @@ if mode == "Spectateur / Participant":
                     document.getElementById("seconds").innerText = "0";
                     
                     if (participants.length > 0) {{
-                        const randomIndex = Math.floor(Math.random() * participants.length);
+                        const randomIndex = Math.floor(Math.abs(Math.sin(countDownDate) * 10000)) % participants.length;
                         const selectedWinner = participants[randomIndex];
                         
                         lancerAnimationLoto(selectedWinner, function() {{
                             setTimeout(function() {{
-                                window.location.search = "?auto_winner=" + encodeURIComponent(selectedWinner);
+                                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                                window.location.href = cleanUrl + "?auto_winner=" + encodeURIComponent(selectedWinner);
                             }}, 1000);
                         }});
                     }} else {{
@@ -239,7 +244,7 @@ if mode == "Spectateur / Participant":
     elif etat == "En cours":
         st.warning("🎰 **Le tirage est en cours en direct !**")
     else:
-        st.warning("⏳ En attente du compte à rebours (18h20)... Restez connectés !")
+        st.warning("⏳ En attente du compte à rebours (18h23)... Restez connectés !")
         
     st.markdown("---")
     

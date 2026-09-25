@@ -33,7 +33,7 @@ st.sidebar.header("⚙️ Configuration")
 mode = st.sidebar.radio("Je suis :", ["Spectateur / Participant", "Administrateur"])
 
 # ---------------------------------------------------------
-# MODE 1 : SPECTATEUR / PARTICIPANT (Plein écran)
+# MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
     st.info("💡 Cette page se met à jour pour vous montrer les listes et le grand gagnant en direct !")
@@ -47,7 +47,6 @@ if mode == "Spectateur / Participant":
         st.success(f"🏆 Le grand gagnant est : **{data['gagnant']}** ! Félicitations ! 🥳")
     
     col1, col2 = st.columns(2)
-    
     with col1:
         st.subheader("✅ Participants Validés")
         if data["participants_acceptes"]:
@@ -68,16 +67,15 @@ if mode == "Spectateur / Participant":
         st.rerun()
 
 # ---------------------------------------------------------
-# MODE 2 : ADMINISTRATEUR (VUE DOUBLE CÔTE À CÔTE 2 EN 1)
+# MODE 2 : ADMINISTRATEUR (VUE DOUBLE CÔTE À CÔTE)
 # ---------------------------------------------------------
 else:
     st.sidebar.success("🔒 Mode Administrateur activé")
     st.header("🛠️ Espace Administrateur - Double Vue en Direct")
     
-    # On sépare l'écran en 2 grands blocs verticaux
-    col_admin, col_live = st.columns([1, 1], gap="medium")
+    # Écran divisé en deux colonnes égales
+    col_admin, col_live = st.columns(2, gap="medium")
     
-    # --- COLONNE DE GAUCHE : OUTILS DE GESTION ---
     with col_admin:
         st.subheader("⚙️ Panneau de Gestion")
         
@@ -148,10 +146,9 @@ else:
                 st.success("Remis à zéro !")
                 st.rerun()
 
-        # Suppression rapide dans la colonne admin
+        # Suppression rapide
         st.markdown("---")
         st.markdown("##### 🗑️ Suppression rapide")
-        
         with st.expander("Gérer / Supprimer des participants validés"):
             if data["participants_acceptes"]:
                 for i, p in enumerate(data["participants_acceptes"]):
@@ -176,7 +173,7 @@ else:
             else:
                 st.write("Aucun refus.")
 
-    # --- COLONNE DE DROITE : APERÇU EXACT DU PARTICIPANT ---
+    # --- COLONNE DE DROITE : APERÇU LIVE ---
     with col_live:
         st.markdown("### 👀 Aperçu Live (Vue Participant)")
         st.markdown("---")
@@ -190,7 +187,6 @@ else:
             st.success(f"🏆 Gagnant : **{data['gagnant']}** !")
             
         st.markdown("#### Listes affichées en direct :")
-        
         sub_c1, sub_c2 = st.columns(2)
         with sub_c1:
             st.markdown("**✅ Validés**")

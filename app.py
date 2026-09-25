@@ -2,6 +2,7 @@ import json
 import os
 import random
 import time
+import pandas as pd
 import streamlit as st
 
 DATA_FILE = "tirage_data.json"
@@ -23,7 +24,7 @@ def load_data():
 
 
 def save_data(data):
-  with open(DATA_FILE, "w", encoding="utf-8f") as f:
+  with open(DATA_FILE, "w", encoding="utf-8") as f:
     json.dump(data, f, ensure_ascii=False, indent=4)
 
 
@@ -85,134 +86,103 @@ else:
   st.header("🛠️ Espace de Gestion du Tirage")
 
   tab1, tab2, tab3, tab4 = st.tabs([
-      "📥 Trier les Commentaires FB",
+      "📥 Importer & Vérifier les Noms",
       "👥 Gérer les Listes",
       "🎁 Lancer le Tirage",
       "🔄 Réinitialiser",
   ])
 
-  # ONGLET 1 : ANALYSE ET TRI INTELLIGENT DES COMMENTAIRES FACEBOOK
+  # ONGLET 1 : IMPORTATION AVEC TABLEAU DE CONTRÔLE
   with tab1:
-    st.subheader("📥 Analyse automatique des commentaires Facebook")
+    st.subheader("📥 Extraction et Validation des Noms")
     st.write(
-        "Copiez-collez tout le fil de discussion de votre publication Facebook"
-        " ci-dessous. L'application va extraire les noms et trier les"
-        " participants toute seule !"
+        "Collez les commentaires ci-dessous. L'application va repérer les"
+        " auteurs et vous présenter un tableau de contrôle avant de valider."
     )
 
     texte_fb = st.text_area(
         "Collez les commentaires Facebook ici :",
-        height=250,
-        placeholder="Collez tout le texte brut copié depuis Facebook...",
+        height=200,
+        placeholder="Collez tout le texte brut ici...",
     )
 
-    if st.button("🤖 Lancer le tri automatique"):
+    if "noms_detectes" not in st.session_state:
+      st.session_state["noms_detectes"] = []
+
+    if st.button("🔍 Analyser le texte"):
       if texte_fb.strip():
         lignes = texte_fb.split("\n")
-        commentaires_bruts = []
-        buffer_nom = None
+        noms_trouves = []
 
-        # Étape 1 : Nettoyage et regroupement par auteur typique de Facebook
-        # Sur Facebook, le nom est souvent seul sur une ligne, suivi de "·" ou de texte.
-        i = 0
-        while i < len(lignes):
-          ligne = lignes[i].strip()
-          # Ignorer les lignes de bruit typiques de l'interface FB
-          mots_a_ignorer = [
-              "Répondre",
-              "Partager",
-              "Voir la traduction",
-              "Modifié",
-              "·",
-              "",
-          ]
-          if ligne in mots_a_ignorer or "COMMENT JOUER" in ligne:
-            i += 1
-            continue
-
-          # Détection d'un nom probable (ligne courte sans caractères bizarres, ou suivie de '·')
+        # Analyse intelligente des lignes courtes (souvent les noms sur Facebook)
+        for ligne in lignes:
+          ligne_propre = ligne.replace("👤", "").strip()
+          # Un nom Facebook fait rarement plus de 4 mots et ne contient pas de longs pavés de texte
           if (
-              i + 1 < len(lignes)
-              and ("·" in lignes[i + 1] or lignes[i + 1].strip() == "")
-              and len(ligne) < 40
-          ):
-            nom_auteur = ligne
-            # Récupérer le contenu du commentaire un peu plus bas
-            contenu = ""
-            i += 2
-            while i < len(lignes):
-              sub_lign = lignes[i].strip()
-              if sub_lign in ["Répondre", "Partager", "Voir la traduction"]:
-                break
-              if (
-                  sub_lign
-                  and len(sub_lign) < 40
-                  and i + 1 < len(lignes)
-                  and lignes[i + 1].strip() == "·"
-              ):
-                break  # On tombe sur le nom suivant
-              contenu += " " + sub_lign
-              i += 1
-
-            if nom_auteur:
-              commentaires_bruts.append(
-                  {"nom": nom_auteur, "texte": contenu.lower()}
+              ligne_propre
+              and len(ligne_propre) < 35
+              and " " in ligne_propre
+              and not any(
+                  m in ligne_propre.lower()
+                  for m in [
+                      "répondre",
+                      "partager",
+                      "modifié",
+                      "commentaire",
+                      "http",
+                      "www",
+                      "comment",
+                  ]
               )
-          else:
-            i += 1
-
-        # Étape 2 : Validation ou Refus automatique selon les critères du jeu
-        ajoutes = 0
-        refuses = 0
-
-        # Liste des administrateurs à exclure du tirage
-        exclus = ["seb capturis", "sébastien", "chriss tallerie"]
-
-        for c in commentaires_bruts:
-          nom = c["nom"]
-          texte = c["texte"]
-
-          # Vérifier si c'est l'admin
-          if any(ex in nom.lower() for ex in exclus):
-            continue  # On ignore l'admin
-
-          # Critère 1 : La personne participe-t-elle ou donne-t-elle une réponse valide ?
-          # On cherche des indices de participation ou un parfum
-          mots_cles_parfums = [
-              "caramel",
-              "beurre salé",
-              "yuzu",
-              "café",
-              "chocolat",
-              "cacahuète",
-              "expresso",
-              "gourmand",
-          ]
-          mots_participation = ["participe", "invite", "préféré", "préfère"]
-
-          a_participe = any(m in texte for m in mots_participation) or any(
-              p in texte for p in mots_cles_parfums
-          )
-
-          # S'assurer qu'elle n'est pas déjà dans les listes
-          if nom not in data["participants_acceptes"] and not any(
-              r["nom"] == nom for r in data["participants_refuses"]
           ):
-            if a_participe:
-              data["participants_acceptes"].append(nom)
-              ajoutes += 1
-            else:
-              # Si le commentaire est juste une discussion sans participation claire
-              pass
+            # Éviter les doublons dans la détection
+            if (
+                ligne_propre not in noms_trouves
+                and ligne_propre not in data["participants_acceptes"]
+            ):
+              noms_trouves.append(ligne_propre)
+
+        st.session_state["noms_detectes"] = noms_trouves
+        if noms_trouves:
+          st.success(
+              f"✨ {len(noms_trouves)} noms potentiels détectés ! Vérifiez-les"
+              " ci-dessous :"
+          )
+        else:
+          st.warning(
+              "Aucun nom n'a pu être isolé automatiquement. Essayez de coller"
+              " une liste plus propre."
+          )
+      else:
+        st.warning("Veuillez coller du texte.")
+
+    # Si des noms ont été trouvés, on affiche un tableau éditable (cases à cocher)
+    if st.session_state["noms_detectes"]:
+      st.write("### 📝 Cochez les participants à valider :")
+
+      # Création d'un tableau interactif
+      df_temp = pd.DataFrame({
+          "Nom": st.session_state["noms_detectes"],
+          "Valider": [True] * len(st.session_state["noms_detectes"]),
+      })
+
+      edited_df = st.data_editor(df_temp, hide_index=True, use_container_width=True)
+
+      if st.button("🚀 Ajouter les participants cochés à la liste officielle"):
+        # Récupérer uniquement ceux qui sont cochés à True
+        a_ajouter = edited_df[edited_df["Valider"] == True]["Nom"].tolist()
+        ajout_count = 0
+        for nom in a_ajouter:
+          if nom not in data["participants_acceptes"]:
+            data["participants_acceptes"].append(nom)
+            ajout_count += 1
 
         save_data(data)
+        st.session_state["noms_detectes"] = []  # On vide la mémoire
         st.success(
-            f"✨ Analyse terminée ! **{ajoutes} nouveaux participants** ont été"
-            " validés automatiquement."
+            f"🎉 {ajout_count} participants ont été ajoutés avec succès !"
         )
         st.rerun()
-      else:
-        st.warning("Veuillez coller les commentaires Facebook avant de trier.")
 
   # ONGLET 2 : GESTION CLASSIQUE
   with tab2:

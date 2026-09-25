@@ -4,7 +4,6 @@ import random
 import time
 from datetime import datetime, timezone, timedelta
 import streamlit as st
-import streamlit.components.v1 as components
 
 DATA_FILE = "tirage_data.json"
 VISITS_FILE = "visits_count.json"
@@ -36,7 +35,7 @@ def track_visit():
                 visits = json.load(f).get("count", 1) + 1
         except:
             pass
-    with open(VISITS_FILE, "w") as f:
+    with open(VISITS_FILE, "w", encoding="utf-8") as f:
         json.dump({"count": visits}, f)
     return visits
 
@@ -92,59 +91,22 @@ if mode == "Spectateur / Participant":
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & Compte à Rebours</h3>", unsafe_allow_html=True)
     
-    # Compte à rebours dynamique en direct (JS)
-    countdown_html = """
-    <div style="display: flex; justify-content: center; gap: 15px; text-align: center; font-family: sans-serif; margin-bottom: 10px;">
-        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <span id="days" style="font-size: 26px; font-weight: bold; display: block;">0</span>
-            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Jours</span>
+    tz_france = timezone(timedelta(hours=2))
+    cible = datetime(2026, 10, 4, 20, 0, 0, tzinfo=tz_france)
+    maintenant = datetime.now(tz_france)
+    delta = cible - maintenant
+    
+    if delta.total_seconds() > 0 and data["etat_tirage"] == "En attente":
+        jours = delta.days
+        heures, reste = divmod(delta.seconds, 3600)
+        minutes, secondes = divmod(reste, 60)
+        
+        st.markdown(f"""
+        <div style="text-align: center; font-size: 20px; font-weight: bold; background-color: #1e293b; color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+            ⏳ {jours} Jours, {heures}h {minutes}m {secondes}s restants<br>
+            <span style="font-size: 13px; color: #38bdf8;">Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00</span>
         </div>
-        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <span id="hours" style="font-size: 26px; font-weight: bold; display: block;">0</span>
-            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Heures</span>
-        </div>
-        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <span id="minutes" style="font-size: 26px; font-weight: bold; display: block;">0</span>
-            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Min</span>
-        </div>
-        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <span id="seconds" style="font-size: 26px; font-weight: bold; display: block; color: #38bdf8;">0</span>
-            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Sec</span>
-        </div>
-    </div>
-    <div style="text-align: center; font-size: 14px; color: gray; margin-bottom: 10px;">
-        Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00
-    </div>
-
-    <script>
-        const countDownDate = new Date("October 4, 2026 20:00:00").getTime();
-
-        const x = setInterval(function() {
-            const now = new Date().getTime();
-            const distance = countDownDate - now;
-
-            if (distance < 0) {
-                clearInterval(x);
-                document.getElementById("days").innerText = "0";
-                document.getElementById("hours").innerText = "0";
-                document.getElementById("minutes").innerText = "0";
-                document.getElementById("seconds").innerText = "0";
-            } else {
-                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-                document.getElementById("days").innerText = days;
-                document.getElementById("hours").innerText = hours;
-                document.getElementById("minutes").innerText = minutes;
-                document.getElementById("seconds").innerText = seconds;
-            }
-        }, 1000);
-    </script>
-    """
-    components.html(countdown_html, height=110)
-    st.markdown("---")
+        """, unsafe_allow_html=True)
     
     etat = data["etat_tirage"]
     if etat == "Termine" and data["gagnant"]:
@@ -178,127 +140,123 @@ if mode == "Spectateur / Participant":
         st.rerun()
 
 # ---------------------------------------------------------
-# MODE 2 : ADMINISTRATEUR (DOUBLE VUE + COMPTEUR)
+# MODE 2 : ADMINISTRATEUR (PANNEAU UNIQUE PLEINE PAGE)
 # ---------------------------------------------------------
 else:
     nb_visites = st.session_state.get("visit_count", 1)
     st.sidebar.markdown(f"📊 **Statistiques :** `{nb_visites}` visites sur l'appli.")
 
-    st.header("🛠️ Espace Administrateur - Double Vue en Direct")
+    st.header("🛠️ Espace Administrateur - Panneau de Gestion")
+    st.markdown("---")
     
-    col_admin, col_live = st.columns(2, gap="medium")
+    tab1, tab2, tab3 = st.tabs(["📝 Ajouter des participants", "🎲 Tirage & Tests", "🗑️ Gestion & Reset"])
     
-    with col_admin:
-        st.subheader("⚙️ Panneau de Gestion")
+    with tab1:
+        st.subheader("➕ Ajouter des participants")
+        texte_noms = st.text_area("Collez les noms (un par ligne) :", height=150, placeholder="Nom 1\nNom 2...")
+        if st.button("Enregistrer les participants"):
+            if texte_noms.strip():
+                lignes = texte_noms.split("\n")
+                ajoutes = 0
+                doublons = 0
+                for ligne in lignes:
+                    nom = ligne.strip()
+                    if nom:
+                        if nom not in data["participants_acceptes"]:
+                            data["participants_acceptes"].append(nom)
+                            ajoutes += 1
+                        else:
+                            doublons += 1
+                            
+                save_data(data)
+                msg = f"🎉 {ajoutes} ajouté(s) avec succès !"
+                if doublons > 0:
+                    msg += f" (⚠️ {doublons} doublon(s) ignoré(s))"
+                st.success(msg)
+                st.rerun()
         
-        tab1, tab2, tab3 = st.tabs(["📝 Ajouter", "🎲 Tirage & Tests", "🗑️ Reset"])
-        
-        with tab1:
-            st.markdown("##### Ajouter des participants")
-            texte_noms = st.text_area("Collez les noms (un par ligne) :", height=120, placeholder="Nom 1\nNom 2...")
-            if st.button("➕ Enregistrer"):
-                if texte_noms.strip():
-                    lignes = texte_noms.split("\n")
-                    ajoutes = 0
-                    doublons = 0
-                    for ligne in lignes:
-                        nom = ligne.strip()
-                        if nom:
-                            if nom not in data["participants_acceptes"]:
-                                data["participants_acceptes"].append(nom)
-                                ajoutes += 1
-                            else:
-                                doublons += 1
-                                
-                    save_data(data)
-                    msg = f"🎉 {ajoutes} ajouté(s) avec succès !"
-                    if doublons > 0:
-                        msg += f" (⚠️ {doublons} doublon(s) ignoré(s))"
-                    st.success(msg)
-                    st.rerun()
-            
-            st.markdown("---")
-            st.markdown("##### Enregistrer un refus")
-            with st.form("form_refus_rapide"):
-                n_ref = st.text_input("Nom")
-                r_ref = st.text_input("Raison (ex: Organisateur)")
-                if st.form_submit_button("Ajouter aux refusés") and n_ref:
-                    data["participants_refuses"].append({"nom": n_ref, "raison": r_ref})
-                    save_data(data)
-                    st.success("Refusé !")
-                    st.rerun()
-
-        with tab2:
-            st.markdown("##### 🧪 Test à blanc de l'animation")
-            st.write("Testez l'animation des boules de loto et le TADAM en direct dès maintenant.")
-            if st.button("🧪 LANCER UN TEST À BLANC"):
-                if data["participants_acceptes"]:
-                    st.info("🎰 Mélange des boules magiques...")
-                    placeholder = st.empty()
-                    for _ in range(12):
-                        temp_winner = random.choice(data["participants_acceptes"])
-                        placeholder.markdown(f"<h3 style='text-align: center; color: #3b82f6;'>🌀 Boule en cours : {temp_winner}</h3>", unsafe_allow_html=True)
-                        time.sleep(0.2)
-                    
-                    gagnant_test = random.choice(data["participants_acceptes"])
-                    placeholder.empty()
-                    st.success(f"🧪 **[TEST À BLANC] TADAM ! Le gagnant simulé est : {gagnant_test}** 🥳")
-                    st.balloons()
-                else:
-                    st.warning("Ajoutez d'abord des participants pour faire tourner les boules !")
-
-            st.markdown("---")
-            st.markdown("##### Lancer le Vrai Tirage Officiel")
-            if data["participants_acceptes"]:
-                st.write(f"Participants validés : {len(data['participants_acceptes'])}")
-                if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
-                    data["etat_tirage"] = "En cours"
-                    save_data(data)
-                    
-                    with st.spinner("Suspense... Les boules tournent dans le boulier ! 🪄"):
-                        placeholder = st.empty()
-                        for _ in range(15):
-                            temp_winner = random.choice(data["participants_acceptes"])
-                            placeholder.markdown(f"<h3 style='text-align: center; color: #f59e0b;'>🎰 Tirage... {temp_winner}</h3>", unsafe_allow_html=True)
-                            time.sleep(0.25)
-                        
-                        gagnant = random.choice(data["participants_acceptes"])
-                        data["gagnant"] = gagnant
-                        data["etat_tirage"] = "Termine"
-                        save_data(data)
-                        placeholder.empty()
-                    
-                    st.balloons()
-                    st.success(f"🏆 Le grand gagnant officiel est : **{gagnant}** !")
-                    st.rerun()
-            else:
-                st.warning("Ajoutez des participants d'abord.")
-
-            # Bouton pour effacer le gagnant et refaire des tests
-            st.markdown("---")
-            if data["etat_tirage"] == "Termine":
-                if st.button("🔄 Effacer le gagnant / Réinitialiser le tirage"):
-                    data["etat_tirage"] = "En attente"
-                    data["gagnant"] = None
-                    save_data(data)
-                    st.success("Tirage réinitialisé ! Le gagnant a été effacé.")
-                    st.rerun()
-
-        with tab3:
-            st.markdown("##### Réinitialisation complète")
-            if st.button("🗑️ Tout effacer (Participants + Refus + Gagnant)"):
-                default_data = {
-                    "participants_acceptes": [],
-                    "participants_refuses": [],
-                    "gagnant": None,
-                    "etat_tirage": "En attente"
-                }
-                save_data(default_data)
-                st.success("Remis à zéro complet !")
+        st.markdown("---")
+        st.subheader("🛑 Enregistrer un refus")
+        with st.form("form_refus_rapide"):
+            n_ref = st.text_input("Nom du participant refusé")
+            r_ref = st.text_input("Raison (ex: Organisateur, Hors critères...)")
+            if st.form_submit_button("Ajouter aux refusés") and n_ref:
+                data["participants_refuses"].append({"nom": n_ref, "raison": r_ref})
+                save_data(data)
+                st.success("Refusé enregistré !")
                 st.rerun()
 
+    with tab2:
+        st.subheader("🧪 Test à blanc de l'animation")
+        st.write("Testez l'animation des boules de loto et le TADAM directement ici.")
+        if st.button("🧪 LANCER UN TEST À BLANC"):
+            if data["participants_acceptes"]:
+                st.info("🎰 Mélange des boules magiques...")
+                placeholder = st.empty()
+                for _ in range(12):
+                    temp_winner = random.choice(data["participants_acceptes"])
+                    placeholder.markdown(f"<h3 style='text-align: center; color: #3b82f6;'>🌀 Boule en cours : {temp_winner}</h3>", unsafe_allow_html=True)
+                    time.sleep(0.2)
+                
+                gagnant_test = random.choice(data["participants_acceptes"])
+                placeholder.empty()
+                st.success(f"🧪 **[TEST À BLANC] TADAM ! Le gagnant simulé est : {gagnant_test}** 🥳")
+                st.balloons()
+            else:
+                st.warning("Ajoutez d'abord des participants pour faire tourner les boules !")
+
         st.markdown("---")
-        st.markdown("##### 🗑️ Suppression rapide")
+        st.subheader("🎲 Lancer le Vrai Tirage Officiel")
+        if data["participants_acceptes"]:
+            st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
+            if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
+                data["etat_tirage"] = "En cours"
+                save_data(data)
+                
+                with st.spinner("Suspense... Les boules tournent dans le boulier ! 🪄"):
+                    placeholder = st.empty()
+                    for _ in range(15):
+                        temp_winner = random.choice(data["participants_acceptes"])
+                        placeholder.markdown(f"<h3 style='text-align: center; color: #f59e0b;'>🎰 Tirage... {temp_winner}</h3>", unsafe_allow_html=True)
+                        time.sleep(0.25)
+                    
+                    gagnant = random.choice(data["participants_acceptes"])
+                    data["gagnant"] = gagnant
+                    data["etat_tirage"] = "Termine"
+                    save_data(data)
+                    placeholder.empty()
+                
+                st.balloons()
+                st.success(f"🏆 Le grand gagnant officiel est : **{gagnant}** !")
+                st.rerun()
+        else:
+            st.warning("Ajoutez des participants d'abord.")
+
+        st.markdown("---")
+        if data["etat_tirage"] == "Termine":
+            if st.button("🔄 Effacer le gagnant / Réinitialiser le tirage"):
+                data["etat_tirage"] = "En attente"
+                data["gagnant"] = None
+                save_data(data)
+                st.success("Tirage réinitialisé ! Le gagnant a été effacé.")
+                st.rerun()
+
+    with tab3:
+        st.subheader("🗑️ Gestion et Réinitialisation")
+        
+        if st.button("🗑️ Tout effacer (Participants + Refus + Gagnant)"):
+            default_data = {
+                "participants_acceptes": [],
+                "participants_refuses": [],
+                "gagnant": None,
+                "etat_tirage": "En attente"
+            }
+            save_data(default_data)
+            st.success("Remis à zéro complet !")
+            st.rerun()
+
+        st.markdown("---")
+        st.markdown("##### Suppression ciblée")
         with st.expander("Gérer / Supprimer des participants validés"):
             if data["participants_acceptes"]:
                 for i, p in enumerate(data["participants_acceptes"]):
@@ -322,32 +280,3 @@ else:
                         st.rerun()
             else:
                 st.write("Aucun refus.")
-
-    # --- COLONNE DE DROITE : APERÇU LIVE ---
-    with col_live:
-        st.markdown("### 👀 Aperçu Live (Vue Admin)")
-        st.markdown("---")
-        
-        etat = data["etat_tirage"]
-        if etat == "En attente":
-            st.warning("⏳ Le tirage va bientôt commencer...")
-        elif etat == "Termine" and data["gagnant"]:
-            st.success(f"🏆 Gagnant officiel : **{data['gagnant']}** !")
-            
-        st.markdown("#### Listes affichées en direct :")
-        sub_c1, sub_c2 = st.columns(2)
-        with sub_c1:
-            st.markdown(f"**✅ Validés ({len(data['participants_acceptes'])})**")
-            if data["participants_acceptes"]:
-                for p in data["participants_acceptes"]:
-                    st.write(f"- {p}")
-            else:
-                st.write("Vide")
-                
-        with sub_c2:
-            st.markdown(f"**❌ Refusés ({len(data['participants_refuses'])})**")
-            if data["participants_refuses"]:
-                for r in data["participants_refuses"]:
-                    st.write(f"- {r['nom']}")
-            else:
-                st.write("Aucun")

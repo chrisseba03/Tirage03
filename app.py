@@ -100,7 +100,7 @@ else:
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
-    st.info("💡 **Info :** Le tirage se lancera automatiquement dès que le compte à rebours arrivera à zéro !")
+    st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h05 dès que le compte à rebours arrivera à zéro !")
     
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
@@ -131,7 +131,7 @@ if mode == "Spectateur / Participant":
             </div>
         </div>
         <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-            Tirage au sort automatique à l'échéance
+            Tirage au sort automatique à l'échéance (18h05)
         </div>
 
         <!-- Zone d'Animation Loto (cachée par défaut) -->
@@ -151,7 +151,7 @@ if mode == "Spectateur / Participant":
 
     <script>
         const participants = {participants_js};
-        const countDownDate = new Date("September 25, 2026 17:52:00").getTime();
+        const countDownDate = new Date("September 25, 2026 18:05:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
 
@@ -245,7 +245,7 @@ if mode == "Spectateur / Participant":
     elif etat == "En cours":
         st.warning("🎰 **Le tirage est en cours en direct !**")
     else:
-        st.warning("⏳ En attente du compte à rebours... Restez connectés !")
+        st.warning("⏳ En attente du compte à rebours (18h05)... Restez connectés !")
         
     st.markdown("---")
     

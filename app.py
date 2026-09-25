@@ -231,7 +231,7 @@ if mode == "Spectateur / Participant":
                 if (etatAdmin === "En attente") {{
                     window.location.reload();
                 }}
-            }, 6000);
+            }}, 6000);
         }}
     </script>
     """

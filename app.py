@@ -73,13 +73,10 @@ if (
     and data["etat_tirage"] == "En attente"
     and data["participants_acceptes"]
 ):
-  # Le temps est écoulé, on déclenche automatiquement le tirage si ce n'est pas fait
+  # Le temps est écoulé, le serveur désigne automatiquement le gagnant officiel
   gagnant_auto = random.choice(data["participants_acceptes"])
-  data["etat_tirage"] = "En cours"
-  data["gagnant"] = gagnant_auto
-  save_data(data)
-  # On simule un petit temps de transition puis on passe en mode "Termine"
   data["etat_tirage"] = "Termine"
+  data["gagnant"] = gagnant_auto
   save_data(data)
   st.rerun()
 
@@ -211,8 +208,9 @@ if mode == "Spectateur / Participant":
             }}, 200);
         }}
 
+        // Si le tirage est terminé, on joue l'animation du boulier avec le gagnant officiel pour recréer le suspense !
         if (etatAdmin === "Termine" && gagnantAdmin) {{
-            showWinnerUI(gagnantAdmin);
+            lancerAnimationLoto(gagnantAdmin);
         }} else if (etatAdmin === "En cours") {{
             lancerAnimationLoto(gagnantAdmin || (participants.length > 0 ? participants[0] : "Gagnant"));
         }} else {{
@@ -226,7 +224,7 @@ if mode == "Spectateur / Participant":
                     document.getElementById("hours").innerText = "0";
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
-                    // Recharge la page automatiquement pour que Python déclenche le tirage
+                    // Recharge la page pour déclencher l'affichage officiel et les ballons Python
                     window.location.reload();
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));

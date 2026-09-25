@@ -12,6 +12,7 @@ VISITS_FILE = "visits_count.json"
 ADMIN_PASSWORD = "admin170767"
 
 def load_data():
+    # Désactivation du cache Streamlit pour forcer la lecture du fichier disque à chaque fois
     if not os.path.exists(DATA_FILE):
         default_data = {
             "participants_acceptes": [],
@@ -21,8 +22,16 @@ def load_data():
         }
         save_data(default_data)
         return default_data
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {
+            "participants_acceptes": [],
+            "participants_refuses": [],
+            "gagnant": None,
+            "etat_tirage": "En attente"
+        }
 
 def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
@@ -51,6 +60,7 @@ else:
 if "is_admin" not in st.session_state:
     st.session_state["is_admin"] = False
 
+# Chargement permanent des données fraîches depuis le fichier disque
 data = load_data()
 
 # ---------------------------------------------------------
@@ -58,11 +68,14 @@ data = load_data()
 # ---------------------------------------------------------
 query_params = st.query_params
 if "trigger_draw" in query_params:
-    if data["etat_tirage"] == "En attente" and data["participants_acceptes"]:
-        gagnant = random.choice(data["participants_acceptes"])
-        data["etat_tirage"] = "Termine"
-        data["gagnant"] = gagnant
-        save_data(data)
+    # Rechargement frais pour éviter les conflits de dernière seconde
+    data_fresh = load_data()
+    if data_fresh["etat_tirage"] == "En attente" and data_fresh["participants_acceptes"]:
+        # Choix aléatoire unique basé sur les participants du fichier
+        gagnant = random.choice(data_fresh["participants_acceptes"])
+        data_fresh["etat_tirage"] = "Termine"
+        data_fresh["gagnant"] = gagnant
+        save_data(data_fresh)
     
     st.query_params.clear()
     st.rerun()
@@ -101,6 +114,8 @@ else:
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
+    # On rafraîchit l'état depuis le fichier pour voir si une autre machine a tiré le gagnant
+    data = load_data()
     etat_actuel = data["etat_tirage"]
     
     if etat_actuel == "Termine" and data["gagnant"]:
@@ -113,10 +128,10 @@ if mode == "Spectateur / Participant":
         </div>
         """, unsafe_allow_html=True)
         
-        st.info("🔒 **Le tirage est terminé et le résultat est définitivement verrouillé.** Si vous actualisez la page, le résultat restera le même. Seul l'administrateur peut réinitialiser le jeu.")
+        st.info("🔒 **Le tirage est terminé et le résultat est définitivement verrouillé.** Le même gagnant s'affiche partout sur tous vos appareils.")
 
     else:
-        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h34 dès que le compte à rebours arrivera à zéro !")
+        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h37 dès que le compte à rebours arrivera à zéro !")
         st.markdown("---")
         st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
         
@@ -144,7 +159,7 @@ if mode == "Spectateur / Participant":
                 </div>
             </div>
             <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-                Tirage au sort automatique à l'échéance (18h34)
+                Tirage au sort automatique à l'échéance (18h37)
             </div>
 
             <!-- Zone d'Animation Loto -->
@@ -158,7 +173,7 @@ if mode == "Spectateur / Participant":
 
         <script>
             const participants = {participants_js};
-            const countDownDate = new Date("September 25, 2026 18:34:00").getTime();
+            const countDownDate = new Date("September 25, 2026 18:37:00").getTime();
             let animationLancee = false;
 
             const x = setInterval(function() {{
@@ -265,19 +280,20 @@ else:
         texte_noms = st.text_area("Collez les noms (un par ligne) :", height=150, placeholder="Nom 1\nNom 2...")
         if st.button("Enregistrer les participants"):
             if texte_noms.strip():
+                current_data = load_data()
                 lignes = texte_noms.split("\n")
                 ajoutes = 0
                 doublons = 0
                 for ligne in lignes:
                     nom = ligne.strip()
                     if nom:
-                        if nom not in data["participants_acceptes"]:
-                            data["participants_acceptes"].append(nom)
+                        if nom not in current_data["participants_acceptes"]:
+                            current_data["participants_acceptes"].append(nom)
                             ajoutes += 1
                         else:
                             doublons += 1
                             
-                save_data(data)
+                save_data(current_data)
                 msg = f"🎉 {ajoutes} ajouté(s) avec succès !"
                 if doublons > 0:
                     msg += f" (⚠️ {doublons} doublon(s) ignoré(s))"
@@ -290,23 +306,25 @@ else:
             n_ref = st.text_input("Nom du participant refusé")
             r_ref = st.text_input("Raison (ex: Organisateur, Hors critères...)")
             if st.form_submit_button("Ajouter aux refusés") and n_ref:
-                data["participants_refuses"].append({"nom": n_ref, "raison": r_ref})
-                save_data(data)
+                current_data = load_data()
+                current_data["participants_refuses"].append({"nom": n_ref, "raison": r_ref})
+                save_data(current_data)
                 st.success("Refusé enregistré !")
                 st.rerun()
 
     with tab2:
         st.subheader("🧪 Test à blanc de l'animation")
         if st.button("🧪 LANCER UN TEST À BLANC"):
-            if data["participants_acceptes"]:
+            current_data = load_data()
+            if current_data["participants_acceptes"]:
                 st.info("🎰 Mélange des boules magiques...")
                 placeholder = st.empty()
                 for _ in range(12):
-                    temp_winner = random.choice(data["participants_acceptes"])
+                    temp_winner = random.choice(current_data["participants_acceptes"])
                     placeholder.markdown(f"<h3 style='text-align: center; color: #3b82f6;'>🌀 Boule en cours : {temp_winner}</h3>", unsafe_allow_html=True)
                     time.sleep(0.2)
                 
-                gagnant_test = random.choice(data["participants_acceptes"])
+                gagnant_test = random.choice(current_data["participants_acceptes"])
                 placeholder.empty()
                 st.success(f"🧪 **[TEST À BLANC] TADAM ! Le gagnant simulé est : {gagnant_test}** 🥳")
                 st.balloons()
@@ -315,13 +333,14 @@ else:
 
         st.markdown("---")
         st.subheader("🎲 Lancer le Vrai Tirage Manuel")
-        if data["participants_acceptes"]:
-            st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
+        current_data = load_data()
+        if current_data["participants_acceptes"]:
+            st.write(f"Participants validés actuels : {len(current_data['participants_acceptes'])}")
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
-                gagnant = random.choice(data["participants_acceptes"])
-                data["etat_tirage"] = "Termine"
-                data["gagnant"] = gagnant
-                save_data(data)
+                gagnant = random.choice(current_data["participants_acceptes"])
+                current_data["etat_tirage"] = "Termine"
+                current_data["gagnant"] = gagnant
+                save_data(current_data)
                 st.balloons()
                 st.success(f"🏆 Le grand gagnant est : **{gagnant}** !")
                 st.rerun()
@@ -330,12 +349,13 @@ else:
 
     with tab3:
         st.subheader("🗑️ Gestion et Réinitialisation")
+        current_data = load_data()
         
-        if data["etat_tirage"] == "Termine":
+        if current_data["etat_tirage"] == "Termine":
             if st.button("🔄 Déverrouiller et Effacer le gagnant (Remise à zéro du jeu)"):
-                data["etat_tirage"] = "En attente"
-                data["gagnant"] = None
-                save_data(data)
+                current_data["etat_tirage"] = "En attente"
+                current_data["gagnant"] = None
+                save_data(current_data)
                 st.success("Le tirage est de nouveau en attente. Prêt pour un nouveau lancer !")
                 st.rerun()
             st.markdown("---")
@@ -353,25 +373,25 @@ else:
 
         st.markdown("---")
         with st.expander("Gérer / Supprimer des participants validés"):
-            if data["participants_acceptes"]:
-                for p in sorted(data["participants_acceptes"], key=lambda x: x.lower()):
+            if current_data["participants_acceptes"]:
+                for p in sorted(current_data["participants_acceptes"], key=lambda x: x.lower()):
                     c_a, c_b = st.columns([3, 1])
                     c_a.write(f"👤 {p}")
                     if c_b.button("❌", key=f"del_acc_{p}"):
-                        data["participants_acceptes"].remove(p)
-                        save_data(data)
+                        current_data["participants_acceptes"].remove(p)
+                        save_data(current_data)
                         st.rerun()
             else:
                 st.write("Aucun participant.")
 
         with st.expander("Gérer / Supprimer des refusés"):
-            if data["participants_refuses"]:
-                for i, r in enumerate(data["participants_refuses"]):
+            if current_data["participants_refuses"]:
+                for i, r in enumerate(current_data["participants_refuses"]):
                     c_a, c_b = st.columns([3, 1])
                     c_a.write(f"🛑 {r['nom']}")
                     if c_b.button("❌", key=f"del_ref_{i}"):
-                        data["participants_refuses"].pop(i)
-                        save_data(data)
+                        current_data["participants_refuses"].pop(i)
+                        save_data(current_data)
                         st.rerun()
             else:
                 st.write("Aucun refus.")

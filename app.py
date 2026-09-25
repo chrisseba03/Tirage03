@@ -32,7 +32,7 @@ def track_visit():
     visits = 1
     if os.path.exists(VISITS_FILE):
         try:
-            with open(VISITS_FILE, "r") as f:
+            with open(VISITS_FILE, "r", encoding="utf-8") as f:
                 visits = json.load(f).get("count", 1) + 1
         except:
             pass
@@ -50,6 +50,10 @@ else:
 
 if "is_admin" not in st.session_state:
     st.session_state["is_admin"] = False
+
+# Initialisation de l'état pour le test à blanc dans la session
+if "test_blanc_gagnant" not in st.session_state:
+    st.session_state["test_blanc_gagnant"] = None
 
 data = load_data()
 
@@ -217,18 +221,14 @@ if mode == "Spectateur / Participant":
         
     st.markdown("---")
     
-    # Affichage des listes sur 2 grandes sections (Participants validés / Refusés)
+    # Affichage des listes sur 3 colonnes pour les participants validés
     nb_participants = len(data["participants_acceptes"])
     st.subheader(f"✅ Participants Validés ({nb_participants})")
     
     if data["participants_acceptes"]:
-        # Tri alphabétique (insensible à la casse pour un tri nickel)
         participants_tries = sorted(data["participants_acceptes"], key=lambda x: x.lower())
-        
-        # Répartition sur 3 colonnes
         col_p1, col_p2, col_p3 = st.columns(3)
         
-        # Calcul de la taille de chaque colonne
         tiers = len(participants_tries) // 3
         reste = len(participants_tries) % 3
         
@@ -255,7 +255,6 @@ if mode == "Spectateur / Participant":
     nb_refuses = len(data["participants_refuses"])
     st.subheader(f"❌ Inscriptions Refusées ({nb_refuses})")
     if data["participants_refuses"]:
-        # Tri alphabétique des refusés également par nom
         refuses_tries = sorted(data["participants_refuses"], key=lambda x: x['nom'].lower())
         for r in refuses_tries:
             st.write(f"- 🛑 **{r['nom']}** (*Raison : {r['raison']}*)")
@@ -315,56 +314,74 @@ else:
     with tab2:
         st.subheader("🧪 Test à blanc de l'animation")
         st.write("Testez l'animation des boules de loto et le TADAM directement ici.")
-        if st.button("🧪 LANCER UN TEST À BLANC"):
-            if data["participants_acceptes"]:
-                st.info("🎰 Mélange des boules magiques...")
-                placeholder = st.empty()
-                for _ in range(12):
-                    temp_winner = random.choice(data["participants_acceptes"])
-                    placeholder.markdown(f"<h3 style='text-align: center; color: #3b82f6;'>🌀 Boule en cours : {temp_winner}</h3>", unsafe_allow_html=True)
-                    time.sleep(0.2)
-                
-                gagnant_test = random.choice(data["participants_acceptes"])
-                placeholder.empty()
-                st.success(f"🧪 **[TEST À BLANC] TADAM ! Le gagnant simulé est : {gagnant_test}** 🥳")
-                st.balloons()
-            else:
-                st.warning("Ajoutez d'abord des participants pour faire tourner les boules !")
+        
+        # Affichage du résultat du test s'il y en a un en mémoire
+        if st.session_state["test_blanc_gagnant"]:
+            st.info(f"🧪 **Dernier test à blanc effectué :** Le gagnant simulé était **{st.session_state['test_blanc_gagnant']}**.")
+
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            if st.button("🧪 LANCER UN TEST À BLANC"):
+                if data["participants_acceptes"]:
+                    st.info("🎰 Mélange des boules magiques...")
+                    placeholder = st.empty()
+                    for _ in range(12):
+                        temp_winner = random.choice(data["participants_acceptes"])
+                        placeholder.markdown(f"<h3 style='text-align: center; color: #3b82f6;'>🌀 Boule en cours : {temp_winner}</h3>", unsafe_allow_html=True)
+                        time.sleep(0.2)
+                    
+                    gagnant_test = random.choice(data["participants_acceptes"])
+                    st.session_state["test_blanc_gagnant"] = gagnant_test
+                    placeholder.empty()
+                    st.success(f"🧪 **[TEST À BLANC] TADAM ! Le gagnant simulé est : {gagnant_test}** 🥳")
+                    st.balloons()
+                else:
+                    st.warning("Ajoutez d'abord des participants pour faire tourner les boules !")
+        with col_t2:
+            if st.session_state["test_blanc_gagnant"]:
+                if st.button("🔄 Réinitialiser le test à blanc"):
+                    st.session_state["test_blanc_gagnant"] = None
+                    st.success("Test à blanc réinitialisé !")
+                    st.rerun()
 
         st.markdown("---")
         st.subheader("🎲 Lancer le Vrai Tirage Officiel")
         if data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
-            if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
-                gagnant = random.choice(data["participants_acceptes"])
-                data["etat_tirage"] = "En cours"
-                data["gagnant"] = gagnant
-                save_data(data)
-                
-                with st.spinner("Suspense... Les boules tournent dans le boulier ! 🪄"):
-                    placeholder = st.empty()
-                    for _ in range(15):
-                        temp_winner = random.choice(data["participants_acceptes"])
-                        placeholder.markdown(f"<h3 style='text-align: center; color: #f59e0b;'>🎰 Tirage... {temp_winner}</h3>", unsafe_allow_html=True)
-                        time.sleep(0.25)
-                    placeholder.empty()
-                
-                data["etat_tirage"] = "Termine"
-                save_data(data)
-                
-                st.balloons()
-                st.success(f"🏆 Le grand gagnant officiel est : **{gagnant}** !")
-                st.rerun()
+            if data["etat_tirage"] != "Termine":
+                if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
+                    gagnant = random.choice(data["participants_acceptes"])
+                    data["etat_tirage"] = "En cours"
+                    data["gagnant"] = gagnant
+                    save_data(data)
+                    
+                    with st.spinner("Suspense... Les boules tournent dans le boulier ! 🪄"):
+                        placeholder = st.empty()
+                        for _ in range(15):
+                            temp_winner = random.choice(data["participants_acceptes"])
+                            placeholder.markdown(f"<h3 style='text-align: center; color: #f59e0b;'>🎰 Tirage... {temp_winner}</h3>", unsafe_allow_html=True)
+                            time.sleep(0.25)
+                        placeholder.empty()
+                    
+                    data["etat_tirage"] = "Termine"
+                    save_data(data)
+                    
+                    st.balloons()
+                    st.success(f"🏆 Le grand gagnant officiel est : **{gagnant}** !")
+                    st.rerun()
+            else:
+                st.success(f"🏆 Le vrai tirage a déjà eu lieu. Gagnant officiel : **{data['gagnant']}**")
         else:
             st.warning("Ajoutez des participants d'abord.")
 
         st.markdown("---")
-        if data["etat_tirage"] == "Termine":
-            if st.button("🔄 Effacer le gagnant / Réinitialiser le tirage"):
+        # Bouton séparé pour réinitialiser le vrai tirage officiel
+        if data["etat_tirage"] == "Termine" or data["gagnant"] is not None:
+            if st.button("🔄 Réinitialiser le vrai tirage officiel"):
                 data["etat_tirage"] = "En attente"
                 data["gagnant"] = None
                 save_data(data)
-                st.success("Tirage réinitialisé ! Le gagnant a été effacé.")
+                st.success("Tirage officiel réinitialisé ! Le gagnant a été effacé.")
                 st.rerun()
 
     with tab3:
@@ -378,6 +395,7 @@ else:
                 "etat_tirage": "En attente"
             }
             save_data(default_data)
+            st.session_state["test_blanc_gagnant"] = None
             st.success("Remis à zéro complet !")
             st.rerun()
 
@@ -385,7 +403,6 @@ else:
         st.markdown("##### Suppression ciblée")
         with st.expander("Gérer / Supprimer des participants validés"):
             if data["participants_acceptes"]:
-                # Tri aussi dans la liste de gestion admin pour plus de confort
                 admin_participants_tries = sorted(data["participants_acceptes"], key=lambda x: x.lower())
                 for p in admin_participants_tries:
                     c_a, c_b = st.columns([3, 1])

@@ -97,7 +97,7 @@ if mode == "Spectateur / Participant":
     etat_actuel = data["etat_tirage"]
 
     live_html = f"""
-    <div id="container" style="text-align: center; font-family: sans-serif; padding: 10px;">
+    <div id="container" style="text-align: center; font-family: sans-serif; padding: 5px;">
         <!-- Compte à rebours fluide -->
         <div id="countdown-box" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 10px;">
             <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
@@ -122,23 +122,22 @@ if mode == "Spectateur / Participant":
         </div>
 
         <!-- Zone d'Animation Loto (cachée par défaut) -->
-        <div id="loto-display" style="display: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-            <h2 style="margin: 0; font-size: 18px;">🎰 Le tirage est en cours en direct !</h2>
-            <div id="ball" style="margin: 15px auto; width: 120px; height: 120px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; text-align: center; padding: 10px; box-shadow: inset 0 4px 8px rgba(255,255,255,0.6), 0 6px 12px rgba(0,0,0,0.3); word-break: break-word;">
+        <div id="loto-display" style="display: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 15px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
+            <h2 style="margin: 0 0 5px 0; font-size: 16px;">🎰 Le tirage est en cours en direct !</h2>
+            <div id="ball" style="margin: 5px auto; width: 95px; height: 95px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; text-align: center; padding: 8px; box-shadow: inset 0 4px 8px rgba(255,255,255,0.6), 0 6px 12px rgba(0,0,0,0.3); word-break: break-word;">
                 ...
             </div>
         </div>
 
         <!-- Résultat final si déjà tiré -->
         <div id="winner-box" style="display: none; background: #d1fae5; color: #065f46; padding: 15px; border-radius: 10px; border: 2px solid #34d399;">
-            <h2 style="margin: 0; font-size: 20px;">🏆 TADAM ! Le grand gagnant est :</h2>
-            <p id="winner-name" style="font-size: 24px; font-weight: bold; margin: 8px 0 0 0;"></p>
+            <h2 style="margin: 0; font-size: 18px;">🏆 TADAM ! Le grand gagnant est :</h2>
+            <p id="winner-name" style="font-size: 22px; font-weight: bold; margin: 5px 0 0 0;"></p>
         </div>
     </div>
 
     <script>
         const participants = {participants_js};
-        // Date configurée pour aujourd'hui à 16h18 (dans 2 minutes)
         const countDownDate = new Date("September 25, 2026 16:18:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
@@ -157,7 +156,7 @@ if mode == "Spectateur / Participant":
             document.getElementById("loto-display").style.display = "block";
 
             if (participants.length === 0) {{
-                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré ! (Ajoutez-en dans l'admin)</h3>";
+                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré !</h3>";
                 return;
             }}
 
@@ -174,6 +173,7 @@ if mode == "Spectateur / Participant":
             }}, 200);
         }}
 
+        // Si le tirage est déjà terminé ou en cours dans le backend, on bloque/affiche direct
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else if (etatAdmin === "En cours") {{
@@ -190,11 +190,11 @@ if mode == "Spectateur / Participant":
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
                     
-                    // Déclenchement automatique de l'animation si le temps est écoulé
-                    if (participants.length > 0) {{
+                    // Si l'admin n'a pas encore triggé, le client de secours lance l'anim (uniquement si non terminé)
+                    if (etatAdmin !== "Termine" && participants.length > 0) {{
                         lancerAnimationLoto(participants[Math.floor(Math.random() * participants.length)]);
                     }} else {{
-                        document.getElementById("countdown-text").innerText = "Temps écoulé ! Aucun participant.";
+                        document.getElementById("countdown-text").innerText = "Temps écoulé ! En attente du résultat officiel.";
                     }}
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
@@ -211,7 +211,8 @@ if mode == "Spectateur / Participant":
         }}
     </script>
     """
-    components.html(live_html, height=180)
+    # Hauteur augmentée à 240px pour éviter toute coupe
+    components.html(live_html, height=240)
     st.markdown("---")
     
     etat = data["etat_tirage"]
@@ -339,6 +340,9 @@ else:
         st.subheader("🎲 Lancer le Vrai Tirage Officiel")
         if data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
+            if data["etat_tirage"] == "Termine":
+                st.warning(f"⚠️ Le tirage a déjà été effectué ! Le gagnant actuel est **{data['gagnant']}**. Utilisez le bouton de réinitialisation ci-dessous si vous souhaitez en relancer un nouveau.")
+            
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
                 gagnant = random.choice(data["participants_acceptes"])
                 data["etat_tirage"] = "En cours"

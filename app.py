@@ -32,7 +32,7 @@ def track_visit():
     visits = 1
     if os.path.exists(VISITS_FILE):
         try:
-            with open(VISITS_FILE, "r", encoding="utf-8") as f:
+            with open(VISITS_FILE, "r") as f:
                 visits = json.load(f).get("count", 1) + 1
         except:
             pass
@@ -96,11 +96,8 @@ if mode == "Spectateur / Participant":
     gagnant_actuel = data["gagnant"] if data["gagnant"] else ""
     etat_actuel = data["etat_tirage"]
 
-    # Date cible dynamique pour aujourd'hui à 17h45
-    target_time_str = datetime.now().strftime('%Y-%m-%d') + "T17:45:00"
-
     live_html = f"""
-    <div id="container" style="text-align: center; font-family: sans-serif; padding: 5px;">
+    <div id="container" style="text-align: center; font-family: sans-serif; padding: 10px;">
         <!-- Compte à rebours fluide -->
         <div id="countdown-box" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 10px;">
             <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
@@ -121,78 +118,84 @@ if mode == "Spectateur / Participant":
             </div>
         </div>
         <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-            En attente du tirage officiel
+            Tirage au sort prévu à 17h52
         </div>
 
         <!-- Zone d'Animation Loto (cachée par défaut) -->
-        <div id="loto-display" style="display: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 15px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-            <h2 style="margin: 0 0 5px 0; font-size: 16px;">🎰 Le tirage est en cours en direct !</h2>
-            <div id="ball" style="margin: 5px auto; width: 95px; height: 95px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; text-align: center; padding: 8px; box-shadow: inset 0 4px 8px rgba(255,255,255,0.6), 0 6px 12px rgba(0,0,0,0.3); word-break: break-word;">
+        <div id="loto-display" style="display: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
+            <h2 style="margin: 0; font-size: 18px;">🎰 Le tirage est en cours en direct !</h2>
+            <div id="ball" style="margin: 15px auto; width: 120px; height: 120px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; text-align: center; padding: 10px; box-shadow: inset 0 4px 8px rgba(255,255,255,0.6), 0 6px 12px rgba(0,0,0,0.3); word-break: break-word;">
                 ...
             </div>
         </div>
 
         <!-- Résultat final si déjà tiré -->
         <div id="winner-box" style="display: none; background: #d1fae5; color: #065f46; padding: 15px; border-radius: 10px; border: 2px solid #34d399;">
-            <h2 style="margin: 0; font-size: 18px;">🏆 TADAM ! Le grand gagnant est :</h2>
-            <p id="winner-name" style="font-size: 22px; font-weight: bold; margin: 5px 0 0 0;"></p>
+            <h2 style="margin: 0; font-size: 20px;">🏆 TADAM ! Le grand gagnant est :</h2>
+            <p id="winner-name" style="font-size: 24px; font-weight: bold; margin: 8px 0 0 0;"></p>
         </div>
     </div>
 
     <script>
         const participants = {participants_js};
-        const countDownDate = new Date("{target_time_str}").getTime();
+        // Date configurée pour aujourd'hui à 17h52
+        const countDownDate = new Date("September 25, 2026 17:52:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
 
-        function showWinnerUI(winner) {{
+        function showWinnerUI(winner) {
             document.getElementById("countdown-box").style.display = "none";
             document.getElementById("countdown-text").style.display = "none";
             document.getElementById("loto-display").style.display = "none";
             document.getElementById("winner-box").style.display = "block";
             document.getElementById("winner-name").innerText = winner;
-        }}
+        }
 
-        function lancerAnimationLoto(winnerName) {{
+        function lancerAnimationLoto(winnerName) {
             document.getElementById("countdown-box").style.display = "none";
             document.getElementById("countdown-text").style.display = "none";
             document.getElementById("loto-display").style.display = "block";
 
-            if (participants.length === 0) {{
-                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré !</h3>";
+            if (participants.length === 0) {
+                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré ! (Ajoutez-en dans l'admin)</h3>";
                 return;
-            }}
+            }
 
             let counter = 0;
-            const animInterval = setInterval(function() {{
+            const animInterval = setInterval(function() {
                 const randomIndex = Math.floor(Math.random() * participants.length);
                 document.getElementById("ball").innerText = participants[randomIndex];
                 counter++;
                 
-                if (counter > 15) {{
+                if (counter > 15) {
                     clearInterval(animInterval);
                     showWinnerUI(winnerName || participants[0]);
-                }}
-            }}, 200);
-        }}
+                }
+            }, 200);
+        }
 
-        if (etatAdmin === "Termine" && gagnantAdmin) {{
+        if (etatAdmin === "Termine" && gagnantAdmin) {
             showWinnerUI(gagnantAdmin);
-        }} else if (etatAdmin === "En cours") {{
+        } else if (etatAdmin === "En cours") {
             lancerAnimationLoto(gagnantAdmin);
-        }} else {{
-            const x = setInterval(function() {{
+        } else {
+            const x = setInterval(function() {
                 const now = new Date().getTime();
                 const distance = countDownDate - now;
 
-                if (distance < 0) {{
+                if (distance < 0) {
                     clearInterval(x);
                     document.getElementById("days").innerText = "0";
                     document.getElementById("hours").innerText = "0";
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
-                    document.getElementById("countdown-text").innerText = "⏰ Temps écoulé ! En attente du tirage officiel par l'administrateur.";
-                }} else {{
+                    
+                    if (participants.length > 0) {
+                        lancerAnimationLoto(participants[Math.floor(Math.random() * participants.length)]);
+                    } else {
+                        document.getElementById("countdown-text").innerText = "Temps écoulé ! Aucun participant.";
+                    }
+                } else {
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                     const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
@@ -202,12 +205,12 @@ if mode == "Spectateur / Participant":
                     document.getElementById("hours").innerText = hours;
                     document.getElementById("minutes").innerText = minutes;
                     document.getElementById("seconds").innerText = seconds;
-                }}
-            }}, 1000);
-        }}
+                }
+            }, 1000);
+        }
     </script>
     """
-    components.html(live_html, height=240)
+    components.html(live_html, height=180)
     st.markdown("---")
     
     etat = data["etat_tirage"]
@@ -221,6 +224,7 @@ if mode == "Spectateur / Participant":
         
     st.markdown("---")
     
+    # Affichage des participants sur 3 colonnes et triés par ordre alphabétique
     nb_participants = len(data["participants_acceptes"])
     st.subheader(f"✅ Participants Validés ({nb_participants})")
     
@@ -334,9 +338,6 @@ else:
         st.subheader("🎲 Lancer le Vrai Tirage Officiel")
         if data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
-            if data["etat_tirage"] == "Termine":
-                st.warning(f"⚠️ Le tirage a déjà été effectué ! Le gagnant actuel est **{data['gagnant']}**. Utilisez le bouton de réinitialisation ci-dessous si vous souhaitez en relancer un nouveau.")
-            
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
                 gagnant = random.choice(data["participants_acceptes"])
                 data["etat_tirage"] = "En cours"

@@ -15,12 +15,17 @@ def load_data():
             "participants_acceptes": [],
             "participants_refuses": [],
             "gagnant": None,
-            "etat_tirage": "En attente"
+            "etat_tirage": "En attente",
+            "test_mode": False  # Indicateur pour forcer l'animation à blanc
         }
         save_data(default_data)
         return default_data
     with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+        # Sécurité pour les anciennes structures de données
+        if "test_mode" not in data:
+            data["test_mode"] = False
+        return data
 
 def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
@@ -34,7 +39,7 @@ def track_visit():
                 visits = json.load(f).get("count", 1) + 1
         except:
             pass
-    with open(VISITS_FILE, "w") as f:
+    with open(VISITS_FILE, "w", encoding="utf-8") as f:
         json.dump({"count": visits}, f)
     return visits
 
@@ -43,7 +48,7 @@ if "visited" not in st.session_state:
     st.session_state["visit_count"] = track_visit()
 else:
     if os.path.exists(VISITS_FILE):
-        with open(VISITS_FILE, "r") as f:
+        with open(VISITS_FILE, "r", encoding="utf-8") as f:
             st.session_state["visit_count"] = json.load(f).get("count", 1)
 
 data = load_data()
@@ -60,70 +65,132 @@ mode = st.sidebar.radio("Je suis :", ["Spectateur / Participant", "Administrateu
 if mode == "Spectateur / Participant":
     st.info("💡 **Info :** Cette page se met à jour régulièrement pour intégrer les nouveaux participants au fur et à mesure des validations !")
     
-    # Compte à rebours dynamique en blocs (Style Jours / Heures / Minutes / Secondes)
     st.markdown("---")
-    st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & Animation Automatique</h3>", unsafe_allow_html=True)
     
-    # Code HTML + JS pour le compte à rebours fluide en direct (Objectif : 4 octobre 2026 à 20:00:00)
-    countdown_html = """
-    <div style="display: flex; justify-content: center; gap: 15px; text-align: center; font-family: sans-serif; margin-bottom: 10px;">
-        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <span id="days" style="font-size: 26px; font-weight: bold; display: block;">0</span>
-            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Jours</span>
+    participants_js = json.dumps(data["participants_acceptes"], ensure_ascii=False)
+    gagnant_actuel = data["gagnant"] if data["gagnant"] else ""
+    etat_actuel = data["etat_tirage"]
+    test_mode_actif = "true" if data.get("test_mode", False) else "false"
+
+    loto_html = f"""
+    <div id="container" style="text-align: center; font-family: sans-serif; padding: 15px;">
+        <!-- Compte à rebours -->
+        <div id="countdown-box" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 10px;">
+            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                <span id="days" style="font-size: 22px; font-weight: bold; display: block;">0</span>
+                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Jours</span>
+            </div>
+            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                <span id="hours" style="font-size: 22px; font-weight: bold; display: block;">0</span>
+                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Heures</span>
+            </div>
+            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                <span id="minutes" style="font-size: 22px; font-weight: bold; display: block;">0</span>
+                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Min</span>
+            </div>
+            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                <span id="seconds" style="font-size: 22px; font-weight: bold; display: block; color: #38bdf8;">0</span>
+                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Sec</span>
+            </div>
         </div>
-        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <span id="hours" style="font-size: 26px; font-weight: bold; display: block;">0</span>
-            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Heures</span>
+        <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 15px;">
+            Fermeture et tirage automatique le Dimanche 4 octobre 2026 à 20h00
         </div>
-        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <span id="minutes" style="font-size: 26px; font-weight: bold; display: block;">0</span>
-            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Min</span>
+
+        <!-- Zone d'Animation Loto -->
+        <div id="loto-display" style="display: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
+            <h2 id="loto-title" style="margin: 0; font-size: 20px;">🎰 Tirage en cours de la boule magique...</h2>
+            <div id="ball" style="margin: 20px auto; width: 140px; height: 140px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; text-align: center; padding: 10px; box-shadow: inset 0 5px 10px rgba(255,255,255,0.6), 0 8px 15px rgba(0,0,0,0.3); word-break: break-word;">
+                ...
+            </div>
         </div>
-        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <span id="seconds" style="font-size: 26px; font-weight: bold; display: block; color: #38bdf8;">0</span>
-            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Sec</span>
+
+        <!-- Résultat final si déjà tiré -->
+        <div id="winner-box" style="display: none; background: #d1fae5; color: #065f46; padding: 20px; border-radius: 12px; border: 2px solid #34d399;">
+            <h2 id="winner-title" style="margin: 0; font-size: 22px;">🏆 TADAM ! Le grand gagnant est :</h2>
+            <p id="winner-name" style="font-size: 26px; font-weight: bold; margin: 10px 0 0 0;"></p>
         </div>
-    </div>
-    <div style="text-align: center; font-size: 14px; color: gray; margin-bottom: 10px;">
-        Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00
     </div>
 
     <script>
+        const participants = {participants_js};
         const countDownDate = new Date("October 4, 2026 20:00:00").getTime();
+        const etatAdmin = "{etat_actuel}";
+        const gagnantAdmin = "{gagnant_actuel}";
+        const isTestMode = {test_mode_actif};
 
-        const x = setInterval(function() {
-            const now = new Date().getTime();
-            const distance = countDownDate - now;
+        function showWinnerUI(winner, isTest = false) {{
+            document.getElementById("countdown-box").style.display = "none";
+            document.getElementById("countdown-text").style.display = "none";
+            document.getElementById("loto-display").style.display = "none";
+            document.getElementById("winner-box").style.display = "block";
+            document.getElementById("winner-name").innerText = winner;
+            if (isTest) {{
+                document.getElementById("winner-title").innerText = "🧪 [TEST À BLANC] Le gagnant simulé est :";
+            }}
+        }}
 
-            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        function lancerAnimationLoto(isTest = false) {{
+            document.getElementById("countdown-box").style.display = "none";
+            document.getElementById("countdown-text").style.display = "none";
+            document.getElementById("loto-display").style.display = "block";
+            if (isTest) {{
+                document.getElementById("loto-title").innerText = "🧪 [TEST À BLANC] Boules en action...";
+            }}
 
-            document.getElementById("days").innerText = days;
-            document.getElementById("hours").innerText = hours;
-            document.getElementById("minutes").innerText = minutes;
-            document.getElementById("seconds").innerText = seconds;
+            if (participants.length === 0) {{
+                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré pour effectuer le tirage !</h3>";
+                return;
+            }}
 
-            if (distance < 0) {
-                clearInterval(x);
-                document.getElementById("days").innerText = "0";
-                document.getElementById("hours").innerText = "0";
-                document.getElementById("minutes").innerText = "0";
-                document.getElementById("seconds").innerText = "0";
-            }
-        }, 1000);
+            let counter = 0;
+            const animInterval = setInterval(function() {{
+                const randomIndex = Math.floor(Math.random() * participants.length);
+                document.getElementById("ball").innerText = participants[randomIndex];
+                counter++;
+                
+                if (counter > 20) {{
+                    clearInterval(animInterval);
+                    const finalWinner = participants[Math.floor(Math.random() * participants.length)];
+                    showWinnerUI(finalWinner, isTest);
+                }}
+            }}, 200);
+        }}
+
+        // Si l'admin a déclenché un test à blanc
+        if (isTestMode) {{
+            lancerAnimationLoto(true);
+        }} else if (etatAdmin === "Termine" && gagnantAdmin) {{
+            showWinnerUI(gagnantAdmin, false);
+        }} else {{
+            const x = setInterval(function() {{
+                const now = new Date().getTime();
+                const distance = countDownDate - now;
+
+                if (distance < 0 && etatAdmin !== "Termine") {{
+                    clearInterval(x);
+                    lancerAnimationLoto(false);
+                }} else if (etatAdmin !== "Termine") {{
+                    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                    document.getElementById("days").innerText = days;
+                    document.getElementById("hours").innerText = hours;
+                    document.getElementById("minutes").innerText = minutes;
+                    document.getElementById("seconds").innerText = seconds;
+                }}
+            }}, 1000);
+        }}
     </script>
     """
-    components.html(countdown_html, height=110)
+    components.html(loto_html, height=230)
     st.markdown("---")
 
     etat = data["etat_tirage"]
-    if etat == "En attente":
-        st.warning("⏳ Le tirage va bientôt commencer... Restez connectés !")
-    elif etat == "En cours":
-        st.info("🎰 Le suspense est à son comble... Le tirage est en cours !")
-    elif etat == "Termine" and data["gagnant"]:
+    if etat == "Termine" and data["gagnant"] and not data.get("test_mode", False):
         st.success(f"🏆 Le grand gagnant est : **{data['gagnant']}** ! Félicitations ! 🥳")
     
     col1, col2 = st.columns(2)
@@ -146,6 +213,10 @@ if mode == "Spectateur / Participant":
             st.write("Aucun refus.")
             
     if st.button("🔄 Rafraîchir la page"):
+        # Si on rafraîchit, on désactive le mode test pour remettre le vrai compte à rebours
+        if data.get("test_mode", False):
+            data["test_mode"] = False
+            save_data(data)
         st.rerun()
 
 # ---------------------------------------------------------
@@ -164,7 +235,7 @@ else:
     with col_admin:
         st.subheader("⚙️ Panneau de Gestion")
         
-        tab1, tab2, tab3 = st.tabs(["📝 Ajouter", "🎲 Tirage", "🗑️ Reset"])
+        tab1, tab2, tab3 = st.tabs(["📝 Ajouter", "🎲 Tirage & Tests", "🗑️ Reset"])
         
         with tab1:
             st.markdown("##### Ajouter des participants")
@@ -173,13 +244,21 @@ else:
                 if texte_noms.strip():
                     lignes = texte_noms.split("\n")
                     ajoutes = 0
+                    doublons = 0
                     for ligne in lignes:
                         nom = ligne.strip()
-                        if nom and nom not in data["participants_acceptes"]:
-                            data["participants_acceptes"].append(nom)
-                            ajoutes += 1
+                        if nom:
+                            if nom not in data["participants_acceptes"]:
+                                data["participants_acceptes"].append(nom)
+                                ajoutes += 1
+                            else:
+                                doublons += 1
+                                
                     save_data(data)
-                    st.success(f"🎉 {ajoutes} ajoutés !")
+                    msg = f"🎉 {ajoutes} ajouté(s) avec succès !"
+                    if doublons > 0:
+                        msg += f" (⚠️ {doublons} doublon(s) ignoré(s))"
+                    st.success(msg)
                     st.rerun()
             
             st.markdown("---")
@@ -194,26 +273,28 @@ else:
                     st.rerun()
 
         with tab2:
-            st.markdown("##### Lancer le Tirage")
+            st.markdown("##### 🧪 Test à blanc de l'animation")
+            st.write("Testez l'animation des boules de loto et le TADAM en direct (sans modifier le vrai résultat).")
+            if st.button("🧪 LANCER UN TEST À BLANC"):
+                if data["participants_acceptes"]:
+                    data["test_mode"] = True
+                    save_data(data)
+                    st.success("Test à blanc lancé ! Basculez sur l'onglet 'Spectateur / Participant' pour voir l'animation en direct.")
+                    st.rerun()
+                else:
+                    st.warning("Ajoutez d'abord quelques participants pour faire tourner les boules !")
+
+            st.markdown("---")
+            st.markdown("##### Lancer le Vrai Tirage (Manuel)")
             if data["participants_acceptes"]:
                 st.write(f"Participants validés : {len(data['participants_acceptes'])}")
-                if st.button("🎲 LANCER LE TIRAGE !"):
-                    data["etat_tirage"] = "En cours"
+                if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
+                    data["etat_tirage"] = "Termine"
+                    data["test_mode"] = False
+                    data["gagnant"] = random.choice(data["participants_acceptes"])
                     save_data(data)
-                    
-                    with st.spinner("Suspense... 🪄"):
-                        placeholder = st.empty()
-                        for _ in range(10):
-                            temp_winner = random.choice(data["participants_acceptes"])
-                            placeholder.markdown(f"### 🌀 *{temp_winner}* ...")
-                            time.sleep(0.3)
-                        
-                        gagnant = random.choice(data["participants_acceptes"])
-                        data["gagnant"] = gagnant
-                        data["etat_tirage"] = "Termine"
-                        save_data(data)
-                    
                     st.balloons()
+                    st.success("Tirage officiel effectué !")
                     st.rerun()
             else:
                 st.warning("Ajoutez des participants d'abord.")
@@ -225,7 +306,8 @@ else:
                     "participants_acceptes": [],
                     "participants_refuses": [],
                     "gagnant": None,
-                    "etat_tirage": "En attente"
+                    "etat_tirage": "En attente",
+                    "test_mode": False
                 }
                 save_data(default_data)
                 st.success("Remis à zéro !")
@@ -263,12 +345,12 @@ else:
         st.markdown("---")
         
         etat = data["etat_tirage"]
-        if etat == "En attente":
+        if data.get("test_mode", False):
+            st.info("🧪 [MODE TEST] L'animation de test est en cours sur la vue participant.")
+        elif etat == "En attente":
             st.warning("⏳ Le tirage va bientôt commencer...")
-        elif etat == "En cours":
-            st.info("🎰 Le tirage est en cours...")
         elif etat == "Termine" and data["gagnant"]:
-            st.success(f"🏆 Gagnant : **{data['gagnant']}** !")
+            st.success(f"🏆 Gagnant officiel : **{data['gagnant']}** !")
             
         st.markdown("#### Listes affichées en direct :")
         sub_c1, sub_c2 = st.columns(2)

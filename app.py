@@ -64,8 +64,8 @@ data = load_data()
 # ---------------------------------------------------------
 # VERIFICATION AUTOMATIQUE DE LA DATE DU TIRAGE (COTE SERVEUR)
 # ---------------------------------------------------------
-# Date cible configurée pour le test de 17h15 aujourd'hui
-date_tirage_cible = datetime(2026, 9, 25, 17, 15, 0)
+# Date cible configurée pour le test de 17h20 aujourd'hui
+date_tirage_cible = datetime(2026, 9, 25, 17, 20, 0)
 maintenant = datetime.now()
 
 if (
@@ -153,7 +153,7 @@ if mode == "Spectateur / Participant":
             </div>
         </div>
         <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-            Test de tirage en direct (Cible : 25 Septembre 2026 à 17h15)
+            Test de tirage en direct (Cible : 25 Septembre 2026 à 17h20)
         </div>
 
         <!-- Zone d'Animation Loto (cachée par défaut) -->
@@ -173,7 +173,7 @@ if mode == "Spectateur / Participant":
 
     <script>
         const participants = {participants_js};
-        const countDownDate = new Date("September 25, 2026 17:15:00").getTime();
+        const countDownDate = new Date("September 25, 2026 17:20:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
 
@@ -217,12 +217,8 @@ if mode == "Spectateur / Participant":
                 const now = new Date().getTime();
                 const distance = countDownDate - now;
 
-                if (distance < 0) {{
+                if (distance <= 0) {{
                     clearInterval(x);
-                    document.getElementById("days").innerText = "0";
-                    document.getElementById("hours").innerText = "0";
-                    document.getElementById("minutes").innerText = "0";
-                    document.getElementById("seconds").innerText = "0";
                     window.location.reload();
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));

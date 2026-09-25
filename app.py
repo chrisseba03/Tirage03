@@ -2,9 +2,11 @@ import json
 import os
 import random
 import time
+from datetime import datetime, timedelta
 import streamlit as st
 
 DATA_FILE = "tirage_data.json"
+VISITS_FILE = "visits_count.json"
 
 def load_data():
     if not os.path.exists(DATA_FILE):
@@ -16,13 +18,34 @@ def load_data():
         }
         save_data(default_data)
         return default_data
-    
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+
+# Gestion simple du compteur de visites pour l'admin
+def track_visit():
+    visits = 1
+    if os.path.exists(VISITS_FILE):
+        try:
+            with open(VISITS_FILE, "r") as f:
+                visits = json.load(f).get("count", 1) + 1
+        except:
+            pass
+    with open(VISITS_FILE, "w") as f:
+        json.dump({"count": visits}, f)
+    return visits
+
+# Incrémentation unique par session
+if "visited" not in st.session_state:
+    st.session_state["visited"] = True
+    st.session_state["visit_count"] = track_visit()
+else:
+    if os.path.exists(VISITS_FILE):
+        with open(VISITS_FILE, "r") as f:
+            st.session_state["visit_count"] = json.load(f).get("count", 1)
 
 data = load_data()
 
@@ -36,8 +59,17 @@ mode = st.sidebar.radio("Je suis :", ["Spectateur / Participant", "Administrateu
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
-    st.info("💡 Cette page se met à jour pour vous montrer les listes et le grand gagnant en direct !")
+    st.info("💡 **Info :** Cette page se met à jour régulièrement pour intégrer les nouveaux participants au fur et à mesure des validations !")
     
+    # Compte à rebours fictif ou visuel (par exemple prévu pour dans 2 heures, ou date fixe)
+    st.markdown("---")
+    col_chrono1, col_chrono2, col_chrono3 = st.columns([1, 2, 1])
+    with col_chrono2:
+        st.markdown("### ⏳ Temps avant le grand tirage :")
+        # Affichage d'un faux compte à rebours dynamique ou widget visuel
+        st.metric(label="Statut du tirage", value=data["etat_tirage"], delta="En direct de La Place du Village")
+    st.markdown("---")
+
     etat = data["etat_tirage"]
     if etat == "En attente":
         st.warning("⏳ Le tirage va bientôt commencer... Restez connectés !")
@@ -67,13 +99,17 @@ if mode == "Spectateur / Participant":
         st.rerun()
 
 # ---------------------------------------------------------
-# MODE 2 : ADMINISTRATEUR (VUE DOUBLE CÔTE À CÔTE)
+# MODE 2 : ADMINISTRATEUR (DOUBLE VUE + COMPTEUR)
 # ---------------------------------------------------------
 else:
     st.sidebar.success("🔒 Mode Administrateur activé")
+    
+    # Affichage du compteur de visites réservé à l'admin dans la barre latérale ou en haut
+    nb_visites = st.session_state.get("visit_count", 1)
+    st.sidebar.markdown(f"📊 **Statistiques :** `{nb_visites}` visites sur l'appli.")
+
     st.header("🛠️ Espace Administrateur - Double Vue en Direct")
     
-    # Écran divisé en deux colonnes égales
     col_admin, col_live = st.columns(2, gap="medium")
     
     with col_admin:

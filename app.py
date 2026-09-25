@@ -163,7 +163,7 @@ if mode == "Spectateur / Participant":
             document.getElementById("winner-name").innerText = winner;
         }}
 
-        function lancerAnimationLoto(winnerName) {{
+        function lancerAnimationLoto(winnerName, callback) {{
             document.getElementById("countdown-box").style.display = "none";
             document.getElementById("countdown-text").style.display = "none";
             document.getElementById("loto-display").style.display = "block";
@@ -182,14 +182,14 @@ if mode == "Spectateur / Participant":
                 if (counter > 20) {{
                     clearInterval(animInterval);
                     showWinnerUI(winnerName);
+                    if (callback) callback();
                 }}
             }}, 150);
         }}
 
+        // Si le tirage est déjà terminé dans la base, on affiche direct le gagnant sans relancer
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
-        }} else if (etatAdmin === "En cours") {{
-            lancerAnimationLoto(gagnantAdmin);
         }} else {{
             const x = setInterval(function() {{
                 const now = new Date().getTime();
@@ -203,14 +203,15 @@ if mode == "Spectateur / Participant":
                     document.getElementById("seconds").innerText = "0";
                     
                     if (participants.length > 0) {{
+                        // On choisit un gagnant fixe basé sur une sélection unique
                         const randomIndex = Math.floor(Math.random() * participants.length);
                         const selectedWinner = participants[randomIndex];
                         
-                        lancerAnimationLoto(selectedWinner);
-                        
-                        setTimeout(function() {{
-                            window.location.search = "?auto_winner=" + encodeURIComponent(selectedWinner);
-                        }}, 3500);
+                        lancerAnimationLoto(selectedWinner, function() {{
+                            setTimeout(function() {{
+                                window.location.search = "?auto_winner=" + encodeURIComponent(selectedWinner);
+                            }}, 1000);
+                        }});
                     }} else {{
                         document.getElementById("countdown-text").innerText = "Temps écoulé ! Aucun participant.";
                     }}
@@ -226,12 +227,6 @@ if mode == "Spectateur / Participant":
                     document.getElementById("seconds").innerText = seconds;
                 }}
             }}, 1000);
-            
-            setTimeout(function() {{
-                if (etatAdmin === "En attente") {{
-                    window.location.reload();
-                }}
-            }}, 6000);
         }}
     </script>
     """

@@ -96,7 +96,6 @@ if mode == "Spectateur / Participant":
     gagnant_actuel = data["gagnant"] if data["gagnant"] else ""
     etat_actuel = data["etat_tirage"]
 
-    # Code HTML + JS combinant un compte à rebours ultra-fluide et l'écoute du tirage admin
     live_html = f"""
     <div id="container" style="text-align: center; font-family: sans-serif; padding: 10px;">
         <!-- Compte à rebours fluide -->
@@ -174,13 +173,11 @@ if mode == "Spectateur / Participant":
             }}, 200);
         }}
 
-        // Gestion immédiate selon l'état actuel
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else if (etatAdmin === "En cours") {{
             lancerAnimationLoto(gagnantAdmin || (participants.length > 0 ? participants[0] : "Gagnant"));
         }} else {{
-            // Compte à rebours fluide seconde par seconde
             const x = setInterval(function() {{
                 const now = new Date().getTime();
                 const distance = countDownDate - now;
@@ -313,13 +310,11 @@ else:
         if data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
-                # 1. On choisit le gagnant à l'avance et on met l'état en "En cours"
                 gagnant = random.choice(data["participants_acceptes"])
                 data["etat_tirage"] = "En cours"
                 data["gagnant"] = gagnant
                 save_data(data)
                 
-                # 2. Animation des boules dans l'admin
                 with st.spinner("Suspense... Les boules tournent dans le boulier ! 🪄"):
                     placeholder = st.empty()
                     for _ in range(15):
@@ -328,7 +323,6 @@ else:
                         time.sleep(0.25)
                     placeholder.empty()
                 
-                # 3. On finalise l'état en "Termine"
                 data["etat_tirage"] = "Termine"
                 save_data(data)
                 
@@ -386,3 +380,14 @@ else:
                         st.rerun()
             else:
                 st.write("Aucun refus.")
+
+# ---------------------------------------------------------
+# PIED DE PAGE (FOOTER) AVEC LIENS CLIQUABLES
+# ---------------------------------------------------------
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; padding: 15px; font-size: 13px; color: #64748b; background-color: #1e293b; border-radius: 10px; margin-top: 30px;">
+    Codé en Python par <a href="https://www.facebook.com/profile.php?id=100073514276062" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: bold;">Seb Capturis</a> 
+    pour le groupe Facebook <a href="https://www.facebook.com/groups/bouce/" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: bold;">La Place du Village - ALLIER (03)</a> 🌲🏡
+</div>
+""", unsafe_allow_html=True)

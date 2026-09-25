@@ -100,7 +100,7 @@ else:
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
-    st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h05 dès que le compte à rebours arrivera à zéro !")
+    st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h10 dès que le compte à rebours arrivera à zéro !")
     
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
@@ -131,7 +131,7 @@ if mode == "Spectateur / Participant":
             </div>
         </div>
         <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-            Tirage au sort automatique à l'échéance (18h05)
+            Tirage au sort automatique à l'échéance (18h10)
         </div>
 
         <!-- Zone d'Animation Loto (cachée par défaut) -->
@@ -151,7 +151,7 @@ if mode == "Spectateur / Participant":
 
     <script>
         const participants = {participants_js};
-        const countDownDate = new Date("September 25, 2026 18:05:00").getTime();
+        const countDownDate = new Date("September 25, 2026 18:10:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
 
@@ -203,7 +203,6 @@ if mode == "Spectateur / Participant":
                     document.getElementById("seconds").innerText = "0";
                     
                     if (participants.length > 0) {{
-                        // On choisit un gagnant fixe basé sur une sélection unique
                         const randomIndex = Math.floor(Math.random() * participants.length);
                         const selectedWinner = participants[randomIndex];
                         
@@ -240,7 +239,7 @@ if mode == "Spectateur / Participant":
     elif etat == "En cours":
         st.warning("🎰 **Le tirage est en cours en direct !**")
     else:
-        st.warning("⏳ En attente du compte à rebours (18h05)... Restez connectés !")
+        st.warning("⏳ En attente du compte à rebours (18h10)... Restez connectés !")
         
     st.markdown("---")
     

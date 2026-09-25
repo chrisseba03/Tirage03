@@ -56,6 +56,16 @@ if "is_admin" not in st.session_state:
 
 data = load_data()
 
+# --- SYNCHRONISATION AUTOMATIQUE VIA LE NAVIGATEUR ---
+query_params = st.query_params
+if query_params.get("declencher_tirage") == "oui" and data["etat_tirage"] == "En attente" and data["participants_acceptes"]:
+    gagnant_auto = random.choice(data["participants_acceptes"])
+    data["etat_tirage"] = "Termine"
+    data["gagnant"] = gagnant_auto
+    save_data(data)
+    st.query_params.clear()
+    st.rerun()
+
 st.title("🎉 Le Grand Tirage au Sort en Direct !")
 st.write("Suivez le tirage en temps réel et découvrez si la chance vous sourit ! 🍀")
 
@@ -98,8 +108,6 @@ if mode == "Spectateur / Participant":
     gagnant_actuel = data["gagnant"] if data["gagnant"] else ""
     etat_actuel = data["etat_tirage"]
     string_heure_js = data["heure_tirage"].replace(" ", "T")
-    
-    # On transmet la liste des participants au script JavaScript
     participants_js = json.dumps(data["participants_acceptes"], ensure_ascii=False)
 
     live_html = f"""
@@ -145,7 +153,6 @@ if mode == "Spectateur / Participant":
             document.getElementById("winner-name").innerText = winner;
         }}
 
-        // Si le tirage a déjà eu lieu côté base de données
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else {{
@@ -160,13 +167,11 @@ if mode == "Spectateur / Participant":
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
                     
-                    // Tirage immédiat dans le navigateur s'il y a des participants
-                    if (participants.length > 0) {{
-                        const randomIndex = Math.floor(Math.random() * participants.length);
-                        const luckyWinner = participants[randomIndex];
-                        showWinnerUI(luckyWinner);
+                    if (participants.length > 0 && !gagnantAdmin) {{
+                        // On demande à Python d'enregistrer le gagnant via un paramètre d'URL
+                        window.location.search = "?declencher_tirage=oui";
                     }} else {{
-                        document.getElementById("countdown-text").innerHTML = "⏰ <b>Temps écoulé !</b> Aucun participant enregistre.";
+                        document.getElementById("countdown-text").innerHTML = "⏰ <b>Temps écoulé !</b>";
                     }}
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
@@ -295,8 +300,34 @@ else:
                 st.rerun()
 
     with tab3:
-        st.subheader("🗑️ Gestion et Réinitialisation")
-        if st.button("🗑️ Tout effacer (Participants + Refus + Gagnant)"):
+        st.subheader("🗑️ Gestion et Réinitialisation (Reset)")
+        
+        col_r1, col_r2, col_r3 = st.columns(3)
+        
+        with col_r1:
+            if st.button("🏆 Reset du gagnant"):
+                data["etat_tirage"] = "En attente"
+                data["gagnant"] = None
+                save_data(data)
+                st.success("Gagnant réinitialisé !")
+                st.rerun()
+                
+        with col_r2:
+            if st.button("👥 Reset participants"):
+                data["participants_acceptes"] = []
+                save_data(data)
+                st.success("Liste des participants vidée !")
+                st.rerun()
+                
+        with col_r3:
+            if st.button("❌ Reset des refus"):
+                data["participants_refuses"] = []
+                save_data(data)
+                st.success("Liste des refus vidée !")
+                st.rerun()
+
+        st.markdown("---")
+        if st.button("🗑️ TOUT EFFACER (Participants + Refus + Gagnant)"):
             default_data = {
                 "participants_acceptes": [],
                 "participants_refuses": [],

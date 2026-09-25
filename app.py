@@ -32,7 +32,7 @@ def track_visit():
     visits = 1
     if os.path.exists(VISITS_FILE):
         try:
-            with open(VISITS_FILE, "r") as f:
+            with open(VISITS_FILE, "r", encoding="utf-8") as f:
                 visits = json.load(f).get("count", 1) + 1
         except:
             pass
@@ -173,7 +173,7 @@ if mode == "Spectateur / Participant":
             }}, 200);
         }}
 
-        // Si le tirage est déjà terminé ou en cours dans le backend, on bloque/affiche direct sans jamais relancer
+        // Si le tirage est déjà terminé, on affiche directement le gagnant dans le composant HTML
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else if (etatAdmin === "En cours") {{

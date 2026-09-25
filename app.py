@@ -33,7 +33,7 @@ st.sidebar.header("⚙️ Configuration")
 mode = st.sidebar.radio("Je suis :", ["Spectateur / Participant", "Administrateur"])
 
 # ---------------------------------------------------------
-# MODE 1 : SPECTATEUR / PARTICIPANT
+# MODE 1 : SPECTATEUR / PARTICIPANT (Plein écran)
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
     st.info("💡 Cette page se met à jour pour vous montrer les listes et le grand gagnant en direct !")
@@ -68,117 +68,142 @@ if mode == "Spectateur / Participant":
         st.rerun()
 
 # ---------------------------------------------------------
-# MODE 2 : ADMINISTRATEUR (TOUT-EN-UN)
+# MODE 2 : ADMINISTRATEUR (VUE DOUBLE CÔTE À CÔTE 2 EN 1)
 # ---------------------------------------------------------
 else:
     st.sidebar.success("🔒 Mode Administrateur activé")
-    st.header("🛠️ Espace de Gestion (Tout-en-un)")
+    st.header("🛠️ Espace Administrateur - Double Vue en Direct")
     
-    tab1, tab2, tab3 = st.tabs(["👥 Ajouter des Noms", "🎁 Lancer le Tirage", "🔄 Réinitialiser"])
+    # On sépare l'écran en 2 grands blocs verticaux
+    col_admin, col_live = st.columns([1, 1], gap="medium")
     
-    with tab1:
-        st.subheader("📝 Ajouter des participants en bloc")
-        texte_noms = st.text_area("Collez votre liste de noms ici (un par ligne) :", height=150, placeholder="Christophe Brasseur\nMagali Lefebvre\n...")
+    # --- COLONNE DE GAUCHE : OUTILS DE GESTION ---
+    with col_admin:
+        st.subheader("⚙️ Panneau de Gestion")
         
-        if st.button("➕ Enregistrer ces participants"):
-            if texte_noms.strip():
-                lignes = texte_noms.split("\n")
-                ajoutes = 0
-                for ligne in lignes:
-                    nom = ligne.strip()
-                    if nom and nom not in data["participants_acceptes"]:
-                        data["participants_acceptes"].append(nom)
-                        ajoutes += 1
-                save_data(data)
-                st.success(f"🎉 {ajoutes} participants ajoutés avec succès !")
-                st.rerun()
-                
-        st.markdown("---")
-        st.subheader("🛑 Enregistrer un refus")
-        with st.form("form_refus"):
-            c_ref1, c_ref2 = st.columns(2)
-            n_ref = c_ref1.text_input("Nom de la personne")
-            r_ref = c_ref2.text_input("Raison (ex: Organisateur)")
-            if st.form_submit_button("Ajouter aux refusés") and n_ref:
-                data["participants_refuses"].append({"nom": n_ref, "raison": r_ref})
-                save_data(data)
-                st.success("Refus enregistré !")
-                st.rerun()
-                
-    with tab2:
-        st.subheader("🎰 Animation du Tirage au Sort")
-        if data["participants_acceptes"]:
-            st.write(f"Nombre de participants en lice : {len(data['participants_acceptes'])}")
-            
-            if st.button("🎲 LANCER LE TIRAGE AU SORT EN DIRECT !"):
-                data["etat_tirage"] = "En cours"
-                save_data(data)
-                
-                with st.spinner("Suspense... Le sort est jeté... 🪄"):
-                    placeholder = st.empty()
-                    for _ in range(10):
-                        temp_winner = random.choice(data["participants_acceptes"])
-                        placeholder.markdown(f"### 🌀 En cours : *{temp_winner}* ...")
-                        time.sleep(0.3)
-                    
-                    gagnant = random.choice(data["participants_acceptes"])
-                    data["gagnant"] = gagnant
-                    data["etat_tirage"] = "Termine"
+        tab1, tab2, tab3 = st.tabs(["📝 Ajouter", "🎲 Tirage", "🗑️ Reset"])
+        
+        with tab1:
+            st.markdown("##### Ajouter des participants")
+            texte_noms = st.text_area("Collez les noms (un par ligne) :", height=120, placeholder="Nom 1\nNom 2...")
+            if st.button("➕ Enregistrer"):
+                if texte_noms.strip():
+                    lignes = texte_noms.split("\n")
+                    ajoutes = 0
+                    for ligne in lignes:
+                        nom = ligne.strip()
+                        if nom and nom not in data["participants_acceptes"]:
+                            data["participants_acceptes"].append(nom)
+                            ajoutes += 1
                     save_data(data)
-                
-                st.balloons()
-                st.success(f"🏆 Le gagnant désigné est : **{gagnant}** !")
-                st.rerun()
-        else:
-            st.warning("Ajoutez des participants dans l'onglet 1 pour lancer le jeu.")
+                    st.success(f"🎉 {ajoutes} ajoutés !")
+                    st.rerun()
             
-    with tab3:
-        if st.button("🗑️ Réinitialiser complètement le tirage"):
-            default_data = {
-                "participants_acceptes": [],
-                "participants_refuses": [],
-                "gagnant": None,
-                "etat_tirage": "En attente"
-            }
-            save_data(default_data)
-            st.success("Remis à zéro !")
-            st.rerun()
+            st.markdown("---")
+            st.markdown("##### Enregistrer un refus")
+            with st.form("form_refus_rapide"):
+                n_ref = st.text_input("Nom")
+                r_ref = st.text_input("Raison (ex: Organisateur)")
+                if st.form_submit_button("Ajouter aux refusés") and n_ref:
+                    data["participants_refuses"].append({"nom": n_ref, "raison": r_ref})
+                    save_data(data)
+                    st.success("Refusé !")
+                    st.rerun()
 
-    # --- APERÇU EN DIRECT INTÉGRÉ POUR L'ADMIN ---
-    st.markdown("---")
-    st.header("👀 Aperçu en direct et suppression rapide")
-    
-    etat_actuel = data["etat_tirage"]
-    if etat_actuel == "Termine" and data["gagnant"]:
-        st.success(f"🏆 Gagnant affiché sur le live : **{data['gagnant']}**")
-    else:
-        st.info(f"État actuel du tirage : **{etat_actuel}**")
+        with tab2:
+            st.markdown("##### Lancer le Tirage")
+            if data["participants_acceptes"]:
+                st.write(f"Participants : {len(data['participants_acceptes'])}")
+                if st.button("🎲 LANCER LE TIRAGE !"):
+                    data["etat_tirage"] = "En cours"
+                    save_data(data)
+                    
+                    with st.spinner("Suspense... 🪄"):
+                        placeholder = st.empty()
+                        for _ in range(10):
+                            temp_winner = random.choice(data["participants_acceptes"])
+                            placeholder.markdown(f"### 🌀 *{temp_winner}* ...")
+                            time.sleep(0.3)
+                        
+                        gagnant = random.choice(data["participants_acceptes"])
+                        data["gagnant"] = gagnant
+                        data["etat_tirage"] = "Termine"
+                        save_data(data)
+                    
+                    st.balloons()
+                    st.rerun()
+            else:
+                st.warning("Ajoutez des participants d'abord.")
+
+        with tab3:
+            st.markdown("##### Réinitialisation")
+            if st.button("🗑️ Tout effacer / Reset"):
+                default_data = {
+                    "participants_acceptes": [],
+                    "participants_refuses": [],
+                    "gagnant": None,
+                    "etat_tirage": "En attente"
+                }
+                save_data(default_data)
+                st.success("Remis à zéro !")
+                st.rerun()
+
+        # Suppression rapide dans la colonne admin
+        st.markdown("---")
+        st.markdown("##### 🗑️ Suppression rapide")
         
-    col_prev1, col_prev2 = st.columns(2)
-    
-    with col_prev1:
-        st.subheader(f"✅ Validés ({len(data['participants_acceptes'])})")
-        if data["participants_acceptes"]:
-            for i, p in enumerate(data["participants_acceptes"]):
-                c_a, c_b = st.columns([4, 1])
-                c_a.write(f"👤 {p}")
-                if c_b.button("❌", key=f"del_acc_{i}"):
-                    data["participants_acceptes"].pop(i)
-                    save_data(data)
-                    st.rerun()
-        else:
-            st.write("Aucun participant validé.")
+        with st.expander("Gérer / Supprimer des participants validés"):
+            if data["participants_acceptes"]:
+                for i, p in enumerate(data["participants_acceptes"]):
+                    c_a, c_b = st.columns([3, 1])
+                    c_a.write(f"👤 {p}")
+                    if c_b.button("❌", key=f"del_acc_{i}"):
+                        data["participants_acceptes"].pop(i)
+                        save_data(data)
+                        st.rerun()
+            else:
+                st.write("Aucun participant.")
+
+        with st.expander("Gérer / Supprimer des refusés"):
+            if data["participants_refuses"]:
+                for i, r in enumerate(data["participants_refuses"]):
+                    c_a, c_b = st.columns([3, 1])
+                    c_a.write(f"🛑 {r['nom']}")
+                    if c_b.button("❌", key=f"del_ref_{i}"):
+                        data["participants_refuses"].pop(i)
+                        save_data(data)
+                        st.rerun()
+            else:
+                st.write("Aucun refus.")
+
+    # --- COLONNE DE DROITE : APERÇU EXACT DU PARTICIPANT ---
+    with col_live:
+        st.markdown("### 👀 Aperçu Live (Vue Participant)")
+        st.markdown("---")
+        
+        etat = data["etat_tirage"]
+        if etat == "En attente":
+            st.warning("⏳ Le tirage va bientôt commencer...")
+        elif etat == "En cours":
+            st.info("🎰 Le tirage est en cours...")
+        elif etat == "Termine" and data["gagnant"]:
+            st.success(f"🏆 Gagnant : **{data['gagnant']}** !")
             
-    with col_prev2:
-        st.subheader(f"❌ Refusés ({len(data['participants_refuses'])})")
-        if data["participants_refuses"]:
-            for i, r in enumerate(data["participants_refuses"]):
-                c_a, c_b = st.columns([4, 1])
-                c_a.write(f"🛑 {r['nom']} (*{r['raison']}*)")
-                if c_b.button("❌", key=f"del_ref_{i}"):
-                    data["participants_refuses"].pop(i)
-                    save_data(data)
-                    st.rerun()
-        else:
-            st.write("Aucun refus.")
-            
+        st.markdown("#### Listes affichées en direct :")
+        
+        sub_c1, sub_c2 = st.columns(2)
+        with sub_c1:
+            st.markdown("**✅ Validés**")
+            if data["participants_acceptes"]:
+                for p in data["participants_acceptes"]:
+                    st.write(f"- {p}")
+            else:
+                st.write("Vide")
+                
+        with sub_c2:
+            st.markdown("**❌ Refusés**")
+            if data["participants_refuses"]:
+                for r in data["participants_refuses"]:
+                    st.write(f"- {r['nom']}")
+            else:
+                st.write("Aucun")

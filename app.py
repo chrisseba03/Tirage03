@@ -8,8 +8,8 @@ import streamlit as st
 DATA_FILE = "tirage_data.json"
 VISITS_FILE = "visits_count.json"
 
-# MOT DE PASSE ADMINISTRATEUR (Vous pouvez le changer ici si vous voulez)
-ADMIN_PASSWORD = "admin"
+# MOT DE PASSE ADMINISTRATEUR MIS À JOUR
+ADMIN_PASSWORD = "admin170767"
 
 def load_data():
     if not os.path.exists(DATA_FILE):
@@ -48,7 +48,6 @@ else:
         with open(VISITS_FILE, "r") as f:
             st.session_state["visit_count"] = json.load(f).get("count", 1)
 
-# Gestion de l'authentification admin en session
 if "is_admin" not in st.session_state:
     st.session_state["is_admin"] = False
 
@@ -63,11 +62,9 @@ st.write("Suivez le tirage en temps réel et découvrez si la chance vous sourit
 st.sidebar.header("⚙️ Espace Sécurisé")
 
 if not st.session_state["is_admin"]:
-    # Vue pour les visiteurs normaux : simple indication
     st.sidebar.info("👥 Vous êtes connecté en tant que **Spectateur / Participant**.")
     st.sidebar.markdown("---")
     
-    # Espace discret pour l'admin
     with st.sidebar.expander("🔐 Accès Administrateur"):
         pwd_input = st.text_input("Mot de passe", type="password")
         if st.button("Se connecter"):
@@ -80,7 +77,6 @@ if not st.session_state["is_admin"]:
     
     mode = "Spectateur / Participant"
 else:
-    # Vue si l'admin est connecté
     st.sidebar.success("🔒 Mode Administrateur Actif")
     if st.sidebar.button("🚪 Se déconnecter de l'admin"):
         st.session_state["is_admin"] = False

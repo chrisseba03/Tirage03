@@ -18,14 +18,14 @@ def load_data():
             "participants_refuses": [],
             "gagnant": None,
             "etat_tirage": "En attente",
-            "heure_tirage": "2026-09-25 16:45:00" # Heure cible par défaut
+            "heure_tirage": "2026-09-25 16:50:00" # Heure cible par défaut
         }
         save_data(default_data)
         return default_data
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
         if "heure_tirage" not in data:
-            data["heure_tirage"] = "2026-09-25 16:45:00"
+            data["heure_tirage"] = "2026-09-25 16:50:00"
         return data
 
 def save_data(data):
@@ -57,11 +57,11 @@ if "is_admin" not in st.session_state:
 
 data = load_data()
 
-# --- DECLENCHEMENT AUTOMATIQUE PAR PYTHON ---
-# Si le statut est en attente ET que l'heure actuelle a dépassé l'heure cible
+# --- VERIFICATION ROBUSTE DU TEMPS CIBLE ---
 try:
     target_dt = datetime.strptime(data["heure_tirage"], "%Y-%m-%d %H:%M:%S")
     now_dt = datetime.now()
+    # On ne déclenche QUE si l'état est "En attente" et que l'heure est dépassée
     if data["etat_tirage"] == "En attente" and now_dt >= target_dt and data["participants_acceptes"]:
         gagnant_auto = random.choice(data["participants_acceptes"])
         data["etat_tirage"] = "Termine"
@@ -155,6 +155,7 @@ if mode == "Spectateur / Participant":
             document.getElementById("winner-name").innerText = winner;
         }}
 
+        // Si Python a déjà déterminé le gagnant, on l'affiche tout de suite dans le HTML
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else {{
@@ -168,12 +169,14 @@ if mode == "Spectateur / Participant":
                     document.getElementById("hours").innerText = "0";
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
-                    document.getElementById("countdown-text").innerText = "⏰ Temps écoulé ! Lancement du tirage...";
+                    document.getElementById("countdown-text").innerText = "⏰ Temps écoulé ! Le tirage a eu lieu.";
                     
-                    // Force le rechargement immédiat de la page Streamlit pour déclencher le tirage Python
-                    setTimeout(function() {{
-                        window.parent.location.reload();
-                    }}, 1000);
+                    // On fait un simple rafraîchissement unique si le gagnant n'est pas encore affiché
+                    if (!gagnantAdmin) {{
+                        setTimeout(function() {{
+                            window.location.reload();
+                        }}, 1500);
+                    }}
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -267,9 +270,12 @@ else:
         
         nouvelle_heure = st.text_input("Modifier l'heure (Format AAAA-MM-JJ HH:MM:SS)", value=data["heure_tirage"])
         if st.button("Enregistrer la nouvelle heure cible"):
+            # Si on change l'heure pour le futur, on remet l'état à "En attente" et on efface l'ancien gagnant pour repartir sur un nouveau tirage propre
             data["heure_tirage"] = nouvelle_heure
+            data["etat_tirage"] = "En attente"
+            data["gagnant"] = None
             save_data(data)
-            st.success("Heure de tirage mise à jour avec succès !")
+            st.success("Heure de tirage mise à jour et statut réinitialisé !")
             st.rerun()
 
         st.markdown("---")
@@ -306,7 +312,7 @@ else:
                 "participants_refuses": [],
                 "gagnant": None,
                 "etat_tirage": "En attente",
-                "heure_tirage": "2026-09-25 16:45:00"
+                "heure_tirage": "2026-09-25 16:50:00"
             }
             save_data(default_data)
             st.success("Remis à zéro complet !")

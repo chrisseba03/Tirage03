@@ -56,7 +56,6 @@ data = load_data()
 # ---------------------------------------------------------
 # ENDPOINT INTERNE POUR L'AUTOMATISATION JAVASCRIPT
 # ---------------------------------------------------------
-# Permet au navigateur de valider le gagnant automatiquement à la fin du chrono
 query_params = st.query_params
 if "auto_winner" in query_params and data["etat_tirage"] == "En attente":
     nom_gagnant = query_params["auto_winner"]
@@ -204,7 +203,6 @@ if mode == "Spectateur / Participant":
                     document.getElementById("seconds").innerText = "0";
                     
                     if (participants.length > 0) {{
-                        // Choisit un gagnant de manière unique et déclenche la sauvegarde automatique via l'URL
                         const randomIndex = Math.floor(Math.random() * participants.length);
                         const selectedWinner = participants[randomIndex];
                         
@@ -212,7 +210,7 @@ if mode == "Spectateur / Participant":
                         
                         setTimeout(function() {{
                             window.location.search = "?auto_winner=" + encodeURIComponent(selectedWinner);
-                        }, 3500);
+                        }}, 3500);
                     }} else {{
                         document.getElementById("countdown-text").innerText = "Temps écoulé ! Aucun participant.";
                     }}
@@ -229,7 +227,6 @@ if mode == "Spectateur / Participant":
                 }}
             }}, 1000);
             
-            // Rafraîchissement régulier pour les spectateurs si l'admin a déclenché manuellement
             setTimeout(function() {{
                 if (etatAdmin === "En attente") {{
                     window.location.reload();

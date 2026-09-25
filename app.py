@@ -2,7 +2,7 @@ import json
 import os
 import random
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -54,17 +54,20 @@ if "is_admin" not in st.session_state:
 data = load_data()
 
 # ---------------------------------------------------------
-# ENDPOINT INTERNE POUR L'AUTOMATISATION JAVASCRIPT
+# ENDPOINT INTERNE : VERROUILLAGE DU TIRAGE CÔTÉ SERVEUR
 # ---------------------------------------------------------
 query_params = st.query_params
-if "auto_winner" in query_params and data["etat_tirage"] == "En attente":
-    nom_gagnant = query_params["auto_winner"]
-    if nom_gagnant in data["participants_acceptes"]:
+if "trigger_draw" in query_params:
+    # Le serveur décide du gagnant UNIQUEMENT si le tirage est "En attente"
+    if data["etat_tirage"] == "En attente" and data["participants_acceptes"]:
+        gagnant = random.choice(data["participants_acceptes"])
         data["etat_tirage"] = "Termine"
-        data["gagnant"] = nom_gagnant
+        data["gagnant"] = gagnant
         save_data(data)
-        st.query_params.clear()
-        st.rerun()
+    
+    # On nettoie l'URL et on recharge la page proprement
+    st.query_params.clear()
+    st.rerun()
 
 st.title("🎉 Le Grand Tirage au Sort en Direct !")
 st.write("Suivez le tirage en temps réel et découvrez si la chance vous sourit ! 🍀")
@@ -100,101 +103,68 @@ else:
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
-    st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h23 dès que le compte à rebours arrivera à zéro !")
-    
-    st.markdown("---")
-    st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
-    
-    participants_js = json.dumps(data["participants_acceptes"], ensure_ascii=False)
-    gagnant_actuel = data["gagnant"] if data["gagnant"] else ""
     etat_actuel = data["etat_tirage"]
+    
+    # SI LE TIRAGE EST TERMINÉ : ON FIGE TOUT ET ON AFFICHE LE GAGNANT
+    if etat_actuel == "Termine" and data["gagnant"]:
+        st.balloons()
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #10b981, #047857); padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.4); border: 6px solid #a7f3d0; margin-top: 20px; margin-bottom: 30px;">
+            <h2 style="color: #a7f3d0; margin: 0; font-size: 26px; text-transform: uppercase; letter-spacing: 3px;">🏆 Le Grand Gagnant est 🏆</h2>
+            <h1 style="color: white; font-size: 55px; margin: 25px 0; font-weight: 900; text-shadow: 3px 3px 10px rgba(0,0,0,0.5);">{data['gagnant']}</h1>
+            <p style="color: #d1fae5; font-size: 20px; margin: 0; font-weight: bold;">Toutes nos félicitations ! 🎉🥂</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.info("🔒 **Le tirage est terminé et le résultat est définitivement verrouillé.** Si vous actualisez la page, le résultat restera le même. Seul l'administrateur peut réinitialiser le jeu.")
 
-    live_html = f"""
-    <div id="container" style="text-align: center; font-family: sans-serif; padding: 10px;">
-        <!-- Compte à rebours fluide -->
-        <div id="countdown-box" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 10px;">
-            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
-                <span id="days" style="font-size: 22px; font-weight: bold; display: block;">0</span>
-                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Jours</span>
+    # SI LE TIRAGE EST EN ATTENTE : ON AFFICHE LE COMPTE À REBOURS ET L'ANIMATION
+    else:
+        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h30 dès que le compte à rebours arrivera à zéro !")
+        st.markdown("---")
+        st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
+        
+        participants_js = json.dumps(data["participants_acceptes"], ensure_ascii=False)
+
+        live_html = f"""
+        <div id="container" style="text-align: center; font-family: sans-serif; padding: 10px;">
+            <!-- Compte à rebours -->
+            <div id="countdown-box" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 10px;">
+                <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                    <span id="days" style="font-size: 22px; font-weight: bold; display: block;">0</span>
+                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Jours</span>
+                </div>
+                <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                    <span id="hours" style="font-size: 22px; font-weight: bold; display: block;">0</span>
+                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Heures</span>
+                </div>
+                <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                    <span id="minutes" style="font-size: 22px; font-weight: bold; display: block;">0</span>
+                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Min</span>
+                </div>
+                <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                    <span id="seconds" style="font-size: 22px; font-weight: bold; display: block; color: #38bdf8;">0</span>
+                    <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Sec</span>
+                </div>
             </div>
-            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
-                <span id="hours" style="font-size: 22px; font-weight: bold; display: block;">0</span>
-                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Heures</span>
+            <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
+                Tirage au sort automatique à l'échéance (18h30)
             </div>
-            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
-                <span id="minutes" style="font-size: 22px; font-weight: bold; display: block;">0</span>
-                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Min</span>
-            </div>
-            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
-                <span id="seconds" style="font-size: 22px; font-weight: bold; display: block; color: #38bdf8;">0</span>
-                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Sec</span>
+
+            <!-- Zone d'Animation Loto -->
+            <div id="loto-display" style="display: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
+                <h2 style="margin: 0 0 15px 0; font-size: 22px;">🎰 Le tirage est en cours !</h2>
+                <div id="ball" style="margin: 0 auto; width: 140px; height: 140px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; text-align: center; padding: 10px; box-shadow: inset 0 4px 8px rgba(255,255,255,0.6), 0 6px 12px rgba(0,0,0,0.3); word-break: break-word;">
+                    Suspense...
+                </div>
             </div>
         </div>
-        <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-            Tirage au sort automatique à l'échéance (18h23)
-        </div>
 
-        <!-- Zone d'Animation Loto (cachée par défaut) -->
-        <div id="loto-display" style="display: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-            <h2 style="margin: 0; font-size: 18px;">🎰 Le tirage est en cours en direct !</h2>
-            <div id="ball" style="margin: 15px auto; width: 120px; height: 120px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; text-align: center; padding: 10px; box-shadow: inset 0 4px 8px rgba(255,255,255,0.6), 0 6px 12px rgba(0,0,0,0.3); word-break: break-word;">
-                ...
-            </div>
-        </div>
+        <script>
+            const participants = {participants_js};
+            const countDownDate = new Date("September 25, 2026 18:30:00").getTime();
+            let animationLancee = false;
 
-        <!-- Résultat final si déjà tiré -->
-        <div id="winner-box" style="display: none; background: #d1fae5; color: #065f46; padding: 15px; border-radius: 10px; border: 2px solid #34d399;">
-            <h2 style="margin: 0; font-size: 20px;">🏆 TADAM ! Le grand gagnant est :</h2>
-            <p id="winner-name" style="font-size: 24px; font-weight: bold; margin: 8px 0 0 0;"></p>
-        </div>
-    </div>
-
-    <script>
-        const participants = {participants_js};
-        const countDownDate = new Date("September 25, 2026 18:23:00").getTime();
-        let etatAdmin = "{etat_actuel}";
-        let gagnantAdmin = "{gagnant_actuel}";
-        let animationLancee = false;
-
-        function showWinnerUI(winner) {{
-            document.getElementById("countdown-box").style.display = "none";
-            document.getElementById("countdown-text").style.display = "none";
-            document.getElementById("loto-display").style.display = "none";
-            document.getElementById("winner-box").style.display = "block";
-            document.getElementById("winner-name").innerText = winner;
-        }}
-
-        function lancerAnimationLoto(winnerName, callback) {{
-            if (animationLancee) return;
-            animationLancee = true;
-
-            document.getElementById("countdown-box").style.display = "none";
-            document.getElementById("countdown-text").style.display = "none";
-            document.getElementById("loto-display").style.display = "block";
-
-            if (participants.length === 0) {{
-                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré !</h3>";
-                return;
-            }}
-
-            let counter = 0;
-            const animInterval = setInterval(function() {{
-                const randomIndex = Math.floor(Math.random() * participants.length);
-                document.getElementById("ball").innerText = participants[randomIndex];
-                counter++;
-                
-                if (counter > 20) {{
-                    clearInterval(animInterval);
-                    showWinnerUI(winnerName);
-                    if (callback) callback();
-                }}
-            }}, 150);
-        }}
-
-        // Si le tirage est déjà terminé dans la base, on affiche direct le gagnant sans relancer
-        if (etatAdmin === "Termine" && gagnantAdmin) {{
-            showWinnerUI(gagnantAdmin);
-        }} else {{
             const x = setInterval(function() {{
                 const now = new Date().getTime();
                 const distance = countDownDate - now;
@@ -207,15 +177,26 @@ if mode == "Spectateur / Participant":
                     document.getElementById("seconds").innerText = "0";
                     
                     if (participants.length > 0) {{
-                        const randomIndex = Math.floor(Math.abs(Math.sin(countDownDate) * 10000)) % participants.length;
-                        const selectedWinner = participants[randomIndex];
-                        
-                        lancerAnimationLoto(selectedWinner, function() {{
-                            setTimeout(function() {{
+                        if (animationLancee) return;
+                        animationLancee = true;
+
+                        document.getElementById("countdown-box").style.display = "none";
+                        document.getElementById("countdown-text").style.display = "none";
+                        document.getElementById("loto-display").style.display = "block";
+
+                        let counter = 0;
+                        const animInterval = setInterval(function() {{
+                            const randomIndex = Math.floor(Math.random() * participants.length);
+                            document.getElementById("ball").innerText = participants[randomIndex];
+                            counter++;
+                            
+                            // Après ~4 secondes d'animation, on demande au serveur de figer le résultat
+                            if (counter > 25) {{
+                                clearInterval(animInterval);
                                 const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                                window.location.href = cleanUrl + "?auto_winner=" + encodeURIComponent(selectedWinner);
-                            }}, 1000);
-                        }});
+                                window.location.href = cleanUrl + "?trigger_draw=true";
+                            }}
+                        }}, 150);
                     }} else {{
                         document.getElementById("countdown-text").innerText = "Temps écoulé ! Aucun participant.";
                     }}
@@ -231,23 +212,13 @@ if mode == "Spectateur / Participant":
                     document.getElementById("seconds").innerText = seconds;
                 }}
             }}, 1000);
-        }}
-    </script>
-    """
-    components.html(live_html, height=180)
-    st.markdown("---")
-    
-    etat = data["etat_tirage"]
-    if etat == "Termine" and data["gagnant"]:
-        st.success(f"🏆 Le grand gagnant est : **{data['gagnant']}** ! Félicitations ! 🥳")
-        st.balloons()
-    elif etat == "En cours":
-        st.warning("🎰 **Le tirage est en cours en direct !**")
-    else:
-        st.warning("⏳ En attente du compte à rebours (18h23)... Restez connectés !")
+        </script>
+        """
+        components.html(live_html, height=220)
         
     st.markdown("---")
     
+    # Affichage des participants en bas de page pour tout le monde
     nb_participants = len(data["participants_acceptes"])
     st.subheader(f"✅ Participants Validés ({nb_participants})")
     
@@ -349,7 +320,7 @@ else:
                 st.warning("Ajoutez d'abord des participants !")
 
         st.markdown("---")
-        st.subheader("🎲 Lancer le Vrai Tirage Manuel ou Vérifier l'État")
+        st.subheader("🎲 Lancer le Vrai Tirage Manuel")
         if data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
@@ -363,17 +334,18 @@ else:
         else:
             st.warning("Ajoutez des participants d'abord.")
 
-        st.markdown("---")
+    with tab3:
+        st.subheader("🗑️ Gestion et Réinitialisation")
+        
         if data["etat_tirage"] == "Termine":
-            if st.button("🔄 Effacer le gagnant / Réinitialiser le tirage"):
+            if st.button("🔄 Déverrouiller et Effacer le gagnant (Remise à zéro du jeu)"):
                 data["etat_tirage"] = "En attente"
                 data["gagnant"] = None
                 save_data(data)
-                st.success("Tirage réinitialisé !")
+                st.success("Le tirage est de nouveau en attente. Prêt pour un nouveau lancer !")
                 st.rerun()
-
-    with tab3:
-        st.subheader("🗑️ Gestion et Réinitialisation")
+            st.markdown("---")
+            
         if st.button("🗑️ Tout effacer (Participants + Refus + Gagnant)"):
             default_data = {
                 "participants_acceptes": [],

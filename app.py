@@ -118,7 +118,7 @@ if mode == "Spectateur / Participant":
             </div>
         </div>
         <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-            Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00
+            Test du tirage (prévu pour dans 2 minutes)
         </div>
 
         <!-- Zone d'Animation Loto (cachée par défaut) -->
@@ -138,8 +138,8 @@ if mode == "Spectateur / Participant":
 
     <script>
         const participants = {participants_js};
-        // Date modifiée temporairement à ce soir 20h00 pour votre test (À remettre au 4 octobre ensuite)
-        const countDownDate = new Date("September 25, 2026 20:00:00").getTime();
+        // Date configurée pour aujourd'hui à 16h18 (dans 2 minutes)
+        const countDownDate = new Date("September 25, 2026 16:18:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
 
@@ -157,7 +157,7 @@ if mode == "Spectateur / Participant":
             document.getElementById("loto-display").style.display = "block";
 
             if (participants.length === 0) {{
-                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré !</h3>";
+                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré ! (Ajoutez-en dans l'admin)</h3>";
                 return;
             }}
 
@@ -169,7 +169,7 @@ if mode == "Spectateur / Participant":
                 
                 if (counter > 15) {{
                     clearInterval(animInterval);
-                    showWinnerUI(winnerName);
+                    showWinnerUI(winnerName || participants[0]);
                 }}
             }}, 200);
         }}
@@ -177,7 +177,7 @@ if mode == "Spectateur / Participant":
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else if (etatAdmin === "En cours") {{
-            lancerAnimationLoto(gagnantAdmin || (participants.length > 0 ? participants[0] : "Gagnant"));
+            lancerAnimationLoto(gagnantAdmin);
         }} else {{
             const x = setInterval(function() {{
                 const now = new Date().getTime();
@@ -189,6 +189,13 @@ if mode == "Spectateur / Participant":
                     document.getElementById("hours").innerText = "0";
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
+                    
+                    // Déclenchement automatique de l'animation si le temps est écoulé
+                    if (participants.length > 0) {{
+                        lancerAnimationLoto(participants[Math.floor(Math.random() * participants.length)]);
+                    }} else {{
+                        document.getElementById("countdown-text").innerText = "Temps écoulé ! Aucun participant.";
+                    }}
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -247,7 +254,7 @@ if mode == "Spectateur / Participant":
             for p in col3_items:
                 st.write(f"- 👤 {p}")
     else:
-        st.write("Aucun participant validé pour le moment.")
+        st.write("Aucun participant validé pour le moment. (Pensez à en ajouter dans l'espace admin !)")
         
     st.markdown("---")
     nb_refuses = len(data["participants_refuses"])

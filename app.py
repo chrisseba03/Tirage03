@@ -65,7 +65,7 @@ data = load_data()
 # VERIFICATION AUTOMATIQUE DE LA DATE DU TIRAGE (COTE SERVEUR)
 # ---------------------------------------------------------
 # Date cible : 4 octobre 2026 à 20:00:00
-date_tirage_cible = datetime(2026, 10, 4, 20, 0, 0)
+date_tirage_cible = datetime(2026, 9, 25, 17, 15, 0)
 maintenant = datetime.now()
 
 if (

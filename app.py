@@ -32,7 +32,7 @@ def track_visit():
     visits = 1
     if os.path.exists(VISITS_FILE):
         try:
-            with open(VISITS_FILE, "r") as f:
+            with open(VISITS_FILE, "r", encoding="utf-8") as f:
                 visits = json.load(f).get("count", 1) + 1
         except:
             pass
@@ -96,8 +96,11 @@ if mode == "Spectateur / Participant":
     gagnant_actuel = data["gagnant"] if data["gagnant"] else ""
     etat_actuel = data["etat_tirage"]
 
+    # Date cible dynamique pour aujourd'hui à 17h45
+    target_time_str = datetime.now().strftime('%Y-%m-%d') + "T17:45:00"
+
     live_html = f"""
-    <div id="container" style="text-align: center; font-family: sans-serif; padding: 10px;">
+    <div id="container" style="text-align: center; font-family: sans-serif; padding: 5px;">
         <!-- Compte à rebours fluide -->
         <div id="countdown-box" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 10px;">
             <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
@@ -118,28 +121,27 @@ if mode == "Spectateur / Participant":
             </div>
         </div>
         <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-            Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00
+            En attente du tirage officiel
         </div>
 
         <!-- Zone d'Animation Loto (cachée par défaut) -->
-        <div id="loto-display" style="display: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-            <h2 style="margin: 0; font-size: 18px;">🎰 Le tirage est en cours en direct !</h2>
-            <div id="ball" style="margin: 15px auto; width: 120px; height: 120px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; text-align: center; padding: 10px; box-shadow: inset 0 4px 8px rgba(255,255,255,0.6), 0 6px 12px rgba(0,0,0,0.3); word-break: break-word;">
+        <div id="loto-display" style="display: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 15px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
+            <h2 style="margin: 0 0 5px 0; font-size: 16px;">🎰 Le tirage est en cours en direct !</h2>
+            <div id="ball" style="margin: 5px auto; width: 95px; height: 95px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; text-align: center; padding: 8px; box-shadow: inset 0 4px 8px rgba(255,255,255,0.6), 0 6px 12px rgba(0,0,0,0.3); word-break: break-word;">
                 ...
             </div>
         </div>
 
         <!-- Résultat final si déjà tiré -->
         <div id="winner-box" style="display: none; background: #d1fae5; color: #065f46; padding: 15px; border-radius: 10px; border: 2px solid #34d399;">
-            <h2 style="margin: 0; font-size: 20px;">🏆 TADAM ! Le grand gagnant est :</h2>
-            <p id="winner-name" style="font-size: 24px; font-weight: bold; margin: 8px 0 0 0;"></p>
+            <h2 style="margin: 0; font-size: 18px;">🏆 TADAM ! Le grand gagnant est :</h2>
+            <p id="winner-name" style="font-size: 22px; font-weight: bold; margin: 5px 0 0 0;"></p>
         </div>
     </div>
 
     <script>
         const participants = {participants_js};
-        // Date modifiée temporairement à ce soir 20h00 pour votre test (À remettre au 4 octobre ensuite)
-        const countDownDate = new Date("September 25, 2026 20:00:00").getTime();
+        const countDownDate = new Date("{target_time_str}").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
 
@@ -169,7 +171,7 @@ if mode == "Spectateur / Participant":
                 
                 if (counter > 15) {{
                     clearInterval(animInterval);
-                    showWinnerUI(winnerName);
+                    showWinnerUI(winnerName || participants[0]);
                 }}
             }}, 200);
         }}
@@ -177,7 +179,7 @@ if mode == "Spectateur / Participant":
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else if (etatAdmin === "En cours") {{
-            lancerAnimationLoto(gagnantAdmin || (participants.length > 0 ? participants[0] : "Gagnant"));
+            lancerAnimationLoto(gagnantAdmin);
         }} else {{
             const x = setInterval(function() {{
                 const now = new Date().getTime();
@@ -189,6 +191,7 @@ if mode == "Spectateur / Participant":
                     document.getElementById("hours").innerText = "0";
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
+                    document.getElementById("countdown-text").innerText = "⏰ Temps écoulé ! En attente du tirage officiel par l'administrateur.";
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -204,7 +207,7 @@ if mode == "Spectateur / Participant":
         }}
     </script>
     """
-    components.html(live_html, height=180)
+    components.html(live_html, height=240)
     st.markdown("---")
     
     etat = data["etat_tirage"]
@@ -218,7 +221,6 @@ if mode == "Spectateur / Participant":
         
     st.markdown("---")
     
-    # Affichage des participants sur 3 colonnes et triés par ordre alphabétique
     nb_participants = len(data["participants_acceptes"])
     st.subheader(f"✅ Participants Validés ({nb_participants})")
     
@@ -247,7 +249,7 @@ if mode == "Spectateur / Participant":
             for p in col3_items:
                 st.write(f"- 👤 {p}")
     else:
-        st.write("Aucun participant validé pour le moment.")
+        st.write("Aucun participant validé pour le moment. (Pensez à en ajouter dans l'espace admin !)")
         
     st.markdown("---")
     nb_refuses = len(data["participants_refuses"])
@@ -332,6 +334,9 @@ else:
         st.subheader("🎲 Lancer le Vrai Tirage Officiel")
         if data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
+            if data["etat_tirage"] == "Termine":
+                st.warning(f"⚠️ Le tirage a déjà été effectué ! Le gagnant actuel est **{data['gagnant']}**. Utilisez le bouton de réinitialisation ci-dessous si vous souhaitez en relancer un nouveau.")
+            
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
                 gagnant = random.choice(data["participants_acceptes"])
                 data["etat_tirage"] = "En cours"

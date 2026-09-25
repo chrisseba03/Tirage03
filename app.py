@@ -1,7 +1,6 @@
 import json
 import os
 import random
-import time
 from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
@@ -18,14 +17,14 @@ def load_data():
             "participants_refuses": [],
             "gagnant": None,
             "etat_tirage": "En attente",
-            "heure_tirage": "2026-09-25 16:50:00" # Heure cible par défaut
+            "heure_tirage": "2026-09-25 17:00:00"
         }
         save_data(default_data)
         return default_data
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
         if "heure_tirage" not in data:
-            data["heure_tirage"] = "2026-09-25 16:50:00"
+            data["heure_tirage"] = "2026-09-25 17:00:00"
         return data
 
 def save_data(data):
@@ -57,11 +56,10 @@ if "is_admin" not in st.session_state:
 
 data = load_data()
 
-# --- VERIFICATION ROBUSTE DU TEMPS CIBLE ---
+# Vérification simple par Python
 try:
     target_dt = datetime.strptime(data["heure_tirage"], "%Y-%m-%d %H:%M:%S")
     now_dt = datetime.now()
-    # On ne déclenche QUE si l'état est "En attente" et que l'heure est dépassée
     if data["etat_tirage"] == "En attente" and now_dt >= target_dt and data["participants_acceptes"]:
         gagnant_auto = random.choice(data["participants_acceptes"])
         data["etat_tirage"] = "Termine"
@@ -74,7 +72,7 @@ st.title("🎉 Le Grand Tirage au Sort en Direct !")
 st.write("Suivez le tirage en temps réel et découvrez si la chance vous sourit ! 🍀")
 
 # ---------------------------------------------------------
-# BARRE LATERALE - CONNEXION ADMIN SECURISEE
+# BARRE LATERALE - CONNEXION ADMIN
 # ---------------------------------------------------------
 st.sidebar.header("⚙️ Espace Sécurisé")
 
@@ -104,7 +102,7 @@ else:
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
-    st.info("💡 **Info :** Cette page se met à jour régulièrement pour intégrer les nouveaux participants au fur et à mesure des validations !")
+    st.info("💡 **Info :** Cette page s'actualise toute seule ou via le bouton pour afficher les nouveautés !")
     
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
@@ -113,6 +111,7 @@ if mode == "Spectateur / Participant":
     etat_actuel = data["etat_tirage"]
     string_heure_js = data["heure_tirage"].replace(" ", "T")
 
+    # HTML propre sans rechargement automatique en boucle
     live_html = f"""
     <div id="container" style="text-align: center; font-family: sans-serif; padding: 5px;">
         <div id="countdown-box" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 10px;">
@@ -155,7 +154,6 @@ if mode == "Spectateur / Participant":
             document.getElementById("winner-name").innerText = winner;
         }}
 
-        // Si Python a déjà déterminé le gagnant, on l'affiche tout de suite dans le HTML
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else {{
@@ -169,14 +167,7 @@ if mode == "Spectateur / Participant":
                     document.getElementById("hours").innerText = "0";
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
-                    document.getElementById("countdown-text").innerText = "⏰ Temps écoulé ! Le tirage a eu lieu.";
-                    
-                    // On fait un simple rafraîchissement unique si le gagnant n'est pas encore affiché
-                    if (!gagnantAdmin) {{
-                        setTimeout(function() {{
-                            window.location.reload();
-                        }}, 1500);
-                    }}
+                    document.getElementById("countdown-text").innerHTML = "⏰ <b>Temps écoulé !</b> Cliquez sur 'Rafraîchir la page' ci-dessous pour voir le résultat.";
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -270,7 +261,6 @@ else:
         
         nouvelle_heure = st.text_input("Modifier l'heure (Format AAAA-MM-JJ HH:MM:SS)", value=data["heure_tirage"])
         if st.button("Enregistrer la nouvelle heure cible"):
-            # Si on change l'heure pour le futur, on remet l'état à "En attente" et on efface l'ancien gagnant pour repartir sur un nouveau tirage propre
             data["heure_tirage"] = nouvelle_heure
             data["etat_tirage"] = "En attente"
             data["gagnant"] = None
@@ -312,14 +302,14 @@ else:
                 "participants_refuses": [],
                 "gagnant": None,
                 "etat_tirage": "En attente",
-                "heure_tirage": "2026-09-25 16:50:00"
+                "heure_tirage": "2026-09-25 17:00:00"
             }
             save_data(default_data)
             st.success("Remis à zéro complet !")
             st.rerun()
 
 # ---------------------------------------------------------
-# PIED DE PAGE (FOOTER)
+# PIED DE PAGE
 # ---------------------------------------------------------
 st.markdown("---")
 st.markdown("""

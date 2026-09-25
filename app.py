@@ -38,7 +38,7 @@ st.sidebar.header("⚙️ Configuration")
 mode = st.sidebar.radio("Je suis :", ["Spectateur / Participant", "Administrateur"])
 
 # ---------------------------------------------------------
-# MODE 1 : SPECTATEUR / PARTICIPANT (Seul)
+# MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
   st.info(
@@ -85,13 +85,13 @@ else:
   st.header("🛠️ Espace de Gestion (Tout-en-un)")
 
   tab1, tab2, tab3 = st.tabs(
-      ["👥 Gérer les Participants", "🎁 Lancer le Tirage", "🔄 Réinitialiser"]
+      ["👥 Ajouter des Noms", "🎁 Lancer le Tirage", "🔄 Réinitialiser"]
   )
 
   with tab1:
-    st.subheader("📝 Ajouter des participants (un nom par ligne)")
+    st.subheader("📝 Ajouter des participants en bloc")
     texte_noms = st.text_area(
-        "Collez votre liste de noms ici :",
+        "Collez votre liste de noms ici (un par ligne) :",
         height=150,
         placeholder="Christophe Brasseur\nMagali Lefebvre\n...",
     )
@@ -109,7 +109,6 @@ else:
         st.success(f"🎉 {ajoutes} participants ajoutés avec succès !")
         st.rerun()
 
-    # Formulaire rapide pour ajouter un refusé
     st.markdown("---")
     st.subheader("🛑 Enregistrer un refus")
     with st.form("form_refus"):
@@ -147,7 +146,7 @@ else:
           save_data(data)
 
         st.balloons()
-        st.success(f"🎉 Le gagnant désigné est : **{gagnant}** !")
+        st.success(f"🏆 Le gagnant désigné est : **{gagnant}** !")
         st.rerun()
     else:
       st.warning("Ajoutez des participants dans l'onglet 1 pour lancer le jeu.")
@@ -166,16 +165,13 @@ else:
 
   # --- APERÇU EN DIRECT INTÉGRÉ POUR L'ADMIN ---
   st.markdown("---")
-  st.header("👀 Aperçu en direct (Ce que voient les participants)")
+  st.header("👀 Aperçu en direct et suppression rapide")
 
-  # Affichage de l'état actuel pour l'admin
   etat_actuel = data["etat_tirage"]
   if etat_actuel == "Termine" and data["gagnant"]:
-    st.success(
-        f"🏆 Gagnant actuel affiché sur le live : **{data['gagnant']}**"
-    )
+    st.success(f"🏆 Gagnant affiché sur le live : **{data['gagnant']}**")
   else:
-    st.info(f"État du tirage : **{etat_actuel}**")
+    st.info(f"État actuel du tirage : **{etat_actuel}**")
 
   col_prev1, col_prev2 = st.columns(2)
 

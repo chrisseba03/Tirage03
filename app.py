@@ -4,6 +4,7 @@ import random
 import time
 from datetime import datetime, timezone, timedelta
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 
 DATA_FILE = "tirage_data.json"
 VISITS_FILE = "visits_count.json"
@@ -31,7 +32,7 @@ def track_visit():
     visits = 1
     if os.path.exists(VISITS_FILE):
         try:
-            with open(VISITS_FILE, "r") as f:
+            with open(VISITS_FILE, "r", encoding="utf-8") as f:
                 visits = json.load(f).get("count", 1) + 1
         except:
             pass
@@ -44,7 +45,7 @@ if "visited" not in st.session_state:
     st.session_state["visit_count"] = track_visit()
 else:
     if os.path.exists(VISITS_FILE):
-        with open(VISITS_FILE, "r") as f:
+        with open(VISITS_FILE, "r", encoding="utf-8") as f:
             st.session_state["visit_count"] = json.load(f).get("count", 1)
 
 if "is_admin" not in st.session_state:
@@ -86,6 +87,9 @@ else:
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
+    # Rafraîchissement automatique de la page toutes les 3 secondes pour voir le direct
+    st_autorefresh(interval=3000, key="datarefresh")
+
     st.info("💡 **Info :** Cette page se met à jour régulièrement pour intégrer les nouveaux participants au fur et à mesure des validations !")
     
     st.markdown("---")
@@ -109,8 +113,10 @@ if mode == "Spectateur / Participant":
         """, unsafe_allow_html=True)
     
     etat = data["etat_tirage"]
-    if etat == "Termine" and data["gagnant"]:
-        st.success(f"🏆 Le grand gagnant est : **{data['gagnant']}** ! Félicitations ! 🥳")
+    if etat == "En cours":
+        st.warning("🎰 **Le tirage est en train d'être effectué en direct ! Restez attentifs...**")
+    elif etat == "Termine" and data["gagnant"]:
+        st.success(f"🏆 **TADAM ! Le grand gagnant est : {data['gagnant']}** ! Félicitations ! 🥳")
         st.balloons()
     else:
         st.warning("⏳ Le tirage va bientôt commencer... Restez connectés !")
@@ -210,9 +216,11 @@ else:
         if data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
+                # 1. On passe l'état en "En cours" pour que la vue participant affiche le suspense
                 data["etat_tirage"] = "En cours"
                 save_data(data)
                 
+                # 2. Animation des boules dans l'admin
                 with st.spinner("Suspense... Les boules tournent dans le boulier ! 🪄"):
                     placeholder = st.empty()
                     for _ in range(15):
@@ -220,6 +228,7 @@ else:
                         placeholder.markdown(f"<h3 style='text-align: center; color: #f59e0b;'>🎰 Tirage... {temp_winner}</h3>", unsafe_allow_html=True)
                         time.sleep(0.25)
                     
+                    # 3. Désignation finale du gagnant
                     gagnant = random.choice(data["participants_acceptes"])
                     data["gagnant"] = gagnant
                     data["etat_tirage"] = "Termine"

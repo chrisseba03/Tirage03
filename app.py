@@ -56,18 +56,6 @@ if "is_admin" not in st.session_state:
 
 data = load_data()
 
-# Vérification simple par Python
-try:
-    target_dt = datetime.strptime(data["heure_tirage"], "%Y-%m-%d %H:%M:%S")
-    now_dt = datetime.now()
-    if data["etat_tirage"] == "En attente" and now_dt >= target_dt and data["participants_acceptes"]:
-        gagnant_auto = random.choice(data["participants_acceptes"])
-        data["etat_tirage"] = "Termine"
-        data["gagnant"] = gagnant_auto
-        save_data(data)
-except Exception as e:
-    pass
-
 st.title("🎉 Le Grand Tirage au Sort en Direct !")
 st.write("Suivez le tirage en temps réel et découvrez si la chance vous sourit ! 🍀")
 
@@ -102,7 +90,7 @@ else:
 # MODE 1 : SPECTATEUR / PARTICIPANT
 # ---------------------------------------------------------
 if mode == "Spectateur / Participant":
-    st.info("💡 **Info :** Cette page s'actualise toute seule ou via le bouton pour afficher les nouveautés !")
+    st.info("💡 **Info :** Le tirage s'animera tout seul dès que le chronomètre arrivera à zéro !")
     
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
@@ -110,8 +98,10 @@ if mode == "Spectateur / Participant":
     gagnant_actuel = data["gagnant"] if data["gagnant"] else ""
     etat_actuel = data["etat_tirage"]
     string_heure_js = data["heure_tirage"].replace(" ", "T")
+    
+    # On transmet la liste des participants au script JavaScript
+    participants_js = json.dumps(data["participants_acceptes"], ensure_ascii=False)
 
-    # HTML propre sans rechargement automatique en boucle
     live_html = f"""
     <div id="container" style="text-align: center; font-family: sans-serif; padding: 5px;">
         <div id="countdown-box" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 10px;">
@@ -146,6 +136,7 @@ if mode == "Spectateur / Participant":
         const countDownDate = new Date("{string_heure_js}").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
+        const participants = {participants_js};
 
         function showWinnerUI(winner) {{
             document.getElementById("countdown-box").style.display = "none";
@@ -154,6 +145,7 @@ if mode == "Spectateur / Participant":
             document.getElementById("winner-name").innerText = winner;
         }}
 
+        // Si le tirage a déjà eu lieu côté base de données
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else {{
@@ -167,7 +159,15 @@ if mode == "Spectateur / Participant":
                     document.getElementById("hours").innerText = "0";
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
-                    document.getElementById("countdown-text").innerHTML = "⏰ <b>Temps écoulé !</b> Cliquez sur 'Rafraîchir la page' ci-dessous pour voir le résultat.";
+                    
+                    // Tirage immédiat dans le navigateur s'il y a des participants
+                    if (participants.length > 0) {{
+                        const randomIndex = Math.floor(Math.random() * participants.length);
+                        const luckyWinner = participants[randomIndex];
+                        showWinnerUI(luckyWinner);
+                    }} else {{
+                        document.getElementById("countdown-text").innerHTML = "⏰ <b>Temps écoulé !</b> Aucun participant enregistre.";
+                    }}
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));

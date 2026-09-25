@@ -138,7 +138,8 @@ if mode == "Spectateur / Participant":
 
     <script>
         const participants = {participants_js};
-        const countDownDate = new Date("October 4, 2026 20:00:00").getTime();
+        // Date modifiée temporairement à ce soir 20h00 pour votre test (À remettre au 4 octobre ensuite)
+        const countDownDate = new Date("September 25, 2026 20:00:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
 
@@ -217,18 +218,15 @@ if mode == "Spectateur / Participant":
         
     st.markdown("---")
     
-    # Affichage des listes sur 2 grandes sections (Participants validés / Refusés)
+    # Affichage des participants sur 3 colonnes et triés par ordre alphabétique
     nb_participants = len(data["participants_acceptes"])
     st.subheader(f"✅ Participants Validés ({nb_participants})")
     
     if data["participants_acceptes"]:
-        # Tri alphabétique (insensible à la casse pour un tri nickel)
         participants_tries = sorted(data["participants_acceptes"], key=lambda x: x.lower())
         
-        # Répartition sur 3 colonnes
         col_p1, col_p2, col_p3 = st.columns(3)
         
-        # Calcul de la taille de chaque colonne
         tiers = len(participants_tries) // 3
         reste = len(participants_tries) % 3
         
@@ -255,7 +253,6 @@ if mode == "Spectateur / Participant":
     nb_refuses = len(data["participants_refuses"])
     st.subheader(f"❌ Inscriptions Refusées ({nb_refuses})")
     if data["participants_refuses"]:
-        # Tri alphabétique des refusés également par nom
         refuses_tries = sorted(data["participants_refuses"], key=lambda x: x['nom'].lower())
         for r in refuses_tries:
             st.write(f"- 🛑 **{r['nom']}** (*Raison : {r['raison']}*)")
@@ -385,7 +382,6 @@ else:
         st.markdown("##### Suppression ciblée")
         with st.expander("Gérer / Supprimer des participants validés"):
             if data["participants_acceptes"]:
-                # Tri aussi dans la liste de gestion admin pour plus de confort
                 admin_participants_tries = sorted(data["participants_acceptes"], key=lambda x: x.lower())
                 for p in admin_participants_tries:
                     c_a, c_b = st.columns([3, 1])

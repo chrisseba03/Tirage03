@@ -4,6 +4,7 @@ import random
 import time
 from datetime import datetime, timezone, timedelta
 import streamlit as st
+import streamlit.components.v1 as components
 
 DATA_FILE = "tirage_data.json"
 VISITS_FILE = "visits_count.json"
@@ -89,53 +90,178 @@ if mode == "Spectateur / Participant":
     st.info("💡 **Info :** Cette page se met à jour régulièrement pour intégrer les nouveaux participants au fur et à mesure des validations !")
     
     st.markdown("---")
-    st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & Compte à Rebours</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
     
-    tz_france = timezone(timedelta(hours=2))
-    cible = datetime(2026, 10, 4, 20, 0, 0, tzinfo=tz_france)
-    maintenant = datetime.now(tz_france)
-    delta = cible - maintenant
-    
-    if delta.total_seconds() > 0 and data["etat_tirage"] == "En attente":
-        jours = delta.days
-        heures, reste = divmod(delta.seconds, 3600)
-        minutes, secondes = divmod(reste, 60)
-        
-        st.markdown(f"""
-        <div style="text-align: center; font-size: 20px; font-weight: bold; background-color: #1e293b; color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-            ⏳ {jours} Jours, {heures}h {minutes}m {secondes}s restants<br>
-            <span style="font-size: 13px; color: #38bdf8;">Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00</span>
+    participants_js = json.dumps(data["participants_acceptes"], ensure_ascii=False)
+    gagnant_actuel = data["gagnant"] if data["gagnant"] else ""
+    etat_actuel = data["etat_tirage"]
+
+    live_html = f"""
+    <div id="container" style="text-align: center; font-family: sans-serif; padding: 10px;">
+        <!-- Compte à rebours fluide -->
+        <div id="countdown-box" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 10px;">
+            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                <span id="days" style="font-size: 22px; font-weight: bold; display: block;">0</span>
+                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Jours</span>
+            </div>
+            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                <span id="hours" style="font-size: 22px; font-weight: bold; display: block;">0</span>
+                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Heures</span>
+            </div>
+            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                <span id="minutes" style="font-size: 22px; font-weight: bold; display: block;">0</span>
+                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Min</span>
+            </div>
+            <div style="background: #1e293b; color: white; padding: 10px; border-radius: 8px; min-width: 65px;">
+                <span id="seconds" style="font-size: 22px; font-weight: bold; display: block; color: #38bdf8;">0</span>
+                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Sec</span>
+            </div>
         </div>
-        """, unsafe_allow_html=True)
+        <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
+            Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00
+        </div>
+
+        <!-- Zone d'Animation Loto (cachée par défaut) -->
+        <div id="loto-display" style="display: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
+            <h2 style="margin: 0; font-size: 18px;">🎰 Le tirage est en cours en direct !</h2>
+            <div id="ball" style="margin: 15px auto; width: 120px; height: 120px; background: #fbbf24; color: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; text-align: center; padding: 10px; box-shadow: inset 0 4px 8px rgba(255,255,255,0.6), 0 6px 12px rgba(0,0,0,0.3); word-break: break-word;">
+                ...
+            </div>
+        </div>
+
+        <!-- Résultat final si déjà tiré -->
+        <div id="winner-box" style="display: none; background: #d1fae5; color: #065f46; padding: 15px; border-radius: 10px; border: 2px solid #34d399;">
+            <h2 style="margin: 0; font-size: 20px;">🏆 TADAM ! Le grand gagnant est :</h2>
+            <p id="winner-name" style="font-size: 24px; font-weight: bold; margin: 8px 0 0 0;"></p>
+        </div>
+    </div>
+
+    <script>
+        const participants = {participants_js};
+        const countDownDate = new Date("October 4, 2026 20:00:00").getTime();
+        let etatAdmin = "{etat_actuel}";
+        let gagnantAdmin = "{gagnant_actuel}";
+
+        function showWinnerUI(winner) {{
+            document.getElementById("countdown-box").style.display = "none";
+            document.getElementById("countdown-text").style.display = "none";
+            document.getElementById("loto-display").style.display = "none";
+            document.getElementById("winner-box").style.display = "block";
+            document.getElementById("winner-name").innerText = winner;
+        }}
+
+        function lancerAnimationLoto(winnerName) {{
+            document.getElementById("countdown-box").style.display = "none";
+            document.getElementById("countdown-text").style.display = "none";
+            document.getElementById("loto-display").style.display = "block";
+
+            if (participants.length === 0) {{
+                document.getElementById("loto-display").innerHTML = "<h3>🚨 Aucun participant enregistré !</h3>";
+                return;
+            }}
+
+            let counter = 0;
+            const animInterval = setInterval(function() {{
+                const randomIndex = Math.floor(Math.random() * participants.length);
+                document.getElementById("ball").innerText = participants[randomIndex];
+                counter++;
+                
+                if (counter > 15) {{
+                    clearInterval(animInterval);
+                    showWinnerUI(winnerName);
+                }}
+            }}, 200);
+        }}
+
+        if (etatAdmin === "Termine" && gagnantAdmin) {{
+            showWinnerUI(gagnantAdmin);
+        }} else if (etatAdmin === "En cours") {{
+            lancerAnimationLoto(gagnantAdmin || (participants.length > 0 ? participants[0] : "Gagnant"));
+        }} else {{
+            const x = setInterval(function() {{
+                const now = new Date().getTime();
+                const distance = countDownDate - now;
+
+                if (distance < 0) {{
+                    clearInterval(x);
+                    document.getElementById("days").innerText = "0";
+                    document.getElementById("hours").innerText = "0";
+                    document.getElementById("minutes").innerText = "0";
+                    document.getElementById("seconds").innerText = "0";
+                }} else {{
+                    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                    document.getElementById("days").innerText = days;
+                    document.getElementById("hours").innerText = hours;
+                    document.getElementById("minutes").innerText = minutes;
+                    document.getElementById("seconds").innerText = seconds;
+                }}
+            }}, 1000);
+        }}
+    </script>
+    """
+    components.html(live_html, height=180)
+    st.markdown("---")
     
     etat = data["etat_tirage"]
     if etat == "Termine" and data["gagnant"]:
         st.success(f"🏆 Le grand gagnant est : **{data['gagnant']}** ! Félicitations ! 🥳")
         st.balloons()
+    elif etat == "En cours":
+        st.warning("🎰 **Le tirage est en cours en direct !**")
     else:
         st.warning("⏳ Le tirage va bientôt commencer... Restez connectés !")
         
     st.markdown("---")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        nb_participants = len(data["participants_acceptes"])
-        st.subheader(f"✅ Participants Validés ({nb_participants})")
-        if data["participants_acceptes"]:
-            for p in data["participants_acceptes"]:
+    # Affichage des listes sur 2 grandes sections (Participants validés / Refusés)
+    nb_participants = len(data["participants_acceptes"])
+    st.subheader(f"✅ Participants Validés ({nb_participants})")
+    
+    if data["participants_acceptes"]:
+        # Tri alphabétique (insensible à la casse pour un tri nickel)
+        participants_tries = sorted(data["participants_acceptes"], key=lambda x: x.lower())
+        
+        # Répartition sur 3 colonnes
+        col_p1, col_p2, col_p3 = st.columns(3)
+        
+        # Calcul de la taille de chaque colonne
+        tiers = len(participants_tries) // 3
+        reste = len(participants_tries) % 3
+        
+        fin_col1 = tiers + (1 if reste > 0 else 0)
+        fin_col2 = fin_col1 + tiers + (1 if reste > 1 else 0)
+        
+        col1_items = participants_tries[:fin_col1]
+        col2_items = participants_tries[fin_col1:fin_col2]
+        col3_items = participants_tries[fin_col2:]
+        
+        with col_p1:
+            for p in col1_items:
                 st.write(f"- 👤 {p}")
-        else:
-            st.write("Aucun participant validé pour le moment.")
-            
-    with col2:
-        nb_refuses = len(data["participants_refuses"])
-        st.subheader(f"❌ Inscriptions Refusées ({nb_refuses})")
-        if data["participants_refuses"]:
-            for r in data["participants_refuses"]:
-                st.write(f"- 🛑 **{r['nom']}** (*Raison : {r['raison']}*)")
-        else:
-            st.write("Aucun refus.")
-            
+        with col_p2:
+            for p in col2_items:
+                st.write(f"- 👤 {p}")
+        with col_p3:
+            for p in col3_items:
+                st.write(f"- 👤 {p}")
+    else:
+        st.write("Aucun participant validé pour le moment.")
+        
+    st.markdown("---")
+    nb_refuses = len(data["participants_refuses"])
+    st.subheader(f"❌ Inscriptions Refusées ({nb_refuses})")
+    if data["participants_refuses"]:
+        # Tri alphabétique des refusés également par nom
+        refuses_tries = sorted(data["participants_refuses"], key=lambda x: x['nom'].lower())
+        for r in refuses_tries:
+            st.write(f"- 🛑 **{r['nom']}** (*Raison : {r['raison']}*)")
+    else:
+        st.write("Aucun refus.")
+        
     if st.button("🔄 Rafraîchir la page"):
         st.rerun()
 
@@ -210,7 +336,9 @@ else:
         if data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(data['participants_acceptes'])}")
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
+                gagnant = random.choice(data["participants_acceptes"])
                 data["etat_tirage"] = "En cours"
+                data["gagnant"] = gagnant
                 save_data(data)
                 
                 with st.spinner("Suspense... Les boules tournent dans le boulier ! 🪄"):
@@ -219,12 +347,10 @@ else:
                         temp_winner = random.choice(data["participants_acceptes"])
                         placeholder.markdown(f"<h3 style='text-align: center; color: #f59e0b;'>🎰 Tirage... {temp_winner}</h3>", unsafe_allow_html=True)
                         time.sleep(0.25)
-                    
-                    gagnant = random.choice(data["participants_acceptes"])
-                    data["gagnant"] = gagnant
-                    data["etat_tirage"] = "Termine"
-                    save_data(data)
                     placeholder.empty()
+                
+                data["etat_tirage"] = "Termine"
+                save_data(data)
                 
                 st.balloons()
                 st.success(f"🏆 Le grand gagnant officiel est : **{gagnant}** !")
@@ -259,11 +385,13 @@ else:
         st.markdown("##### Suppression ciblée")
         with st.expander("Gérer / Supprimer des participants validés"):
             if data["participants_acceptes"]:
-                for i, p in enumerate(data["participants_acceptes"]):
+                # Tri aussi dans la liste de gestion admin pour plus de confort
+                admin_participants_tries = sorted(data["participants_acceptes"], key=lambda x: x.lower())
+                for p in admin_participants_tries:
                     c_a, c_b = st.columns([3, 1])
                     c_a.write(f"👤 {p}")
-                    if c_b.button("❌", key=f"del_acc_{i}"):
-                        data["participants_acceptes"].pop(i)
+                    if c_b.button("❌", key=f"del_acc_{p}"):
+                        data["participants_acceptes"].remove(p)
                         save_data(data)
                         st.rerun()
             else:
@@ -280,3 +408,14 @@ else:
                         st.rerun()
             else:
                 st.write("Aucun refus.")
+
+# ---------------------------------------------------------
+# PIED DE PAGE (FOOTER) AVEC LIENS CLIQUABLES
+# ---------------------------------------------------------
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; padding: 15px; font-size: 13px; color: #64748b; background-color: #1e293b; border-radius: 10px; margin-top: 30px;">
+    Codé en Python par <a href="https://www.facebook.com/profile.php?id=100073514276062" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: bold;">Seb Capturis</a> 
+    pour le groupe Facebook <a href="https://www.facebook.com/groups/bouce/" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: bold;">La Place du Village - ALLIER (03)</a> 🌲🏡
+</div>
+""", unsafe_allow_html=True)

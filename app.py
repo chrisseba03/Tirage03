@@ -47,7 +47,7 @@ st.sidebar.title("🔐 Espace Administrateur")
 mot_de_passe = st.sidebar.text_input("Mot de passe admin", type="password")
 
 # Définissez votre mot de passe admin ici (ex: "allier03")
-ADMIN_PASSWORD = "allier03"
+ADMIN_PASSWORD = "admin170767"
 
 est_admin = (mot_de_passe == ADMIN_PASSWORD)
 

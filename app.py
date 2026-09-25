@@ -118,7 +118,7 @@ if mode == "Spectateur / Participant":
             </div>
         </div>
         <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-            Test du tirage (prévu pour dans 2 minutes)
+            En attente du tirage officiel
         </div>
 
         <!-- Zone d'Animation Loto (cachée par défaut) -->
@@ -173,7 +173,7 @@ if mode == "Spectateur / Participant":
             }}, 200);
         }}
 
-        // Si le tirage est déjà terminé ou en cours dans le backend, on bloque/affiche direct
+        // Si le tirage est déjà terminé ou en cours dans le backend, on bloque/affiche direct sans jamais relancer
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else if (etatAdmin === "En cours") {{
@@ -189,13 +189,7 @@ if mode == "Spectateur / Participant":
                     document.getElementById("hours").innerText = "0";
                     document.getElementById("minutes").innerText = "0";
                     document.getElementById("seconds").innerText = "0";
-                    
-                    // Si l'admin n'a pas encore triggé, le client de secours lance l'anim (uniquement si non terminé)
-                    if (etatAdmin !== "Termine" && participants.length > 0) {{
-                        lancerAnimationLoto(participants[Math.floor(Math.random() * participants.length)]);
-                    }} else {{
-                        document.getElementById("countdown-text").innerText = "Temps écoulé ! En attente du résultat officiel.";
-                    }}
+                    document.getElementById("countdown-text").innerText = "⏰ Temps écoulé ! En attente du tirage officiel par l'administrateur.";
                 }} else {{
                     const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -211,7 +205,6 @@ if mode == "Spectateur / Participant":
         }}
     </script>
     """
-    # Hauteur augmentée à 240px pour éviter toute coupe
     components.html(live_html, height=240)
     st.markdown("---")
     

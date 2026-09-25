@@ -129,7 +129,7 @@ if mode == "Spectateur / Participant":
         st.info("🔒 **Le tirage est terminé et verrouillé.** Aucune actualisation ne pourra modifier ce résultat.")
 
     else:
-        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h49 dès que le compte à rebours arrivera à zéro !")
+        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h52 dès que le compte à rebours arrivera à zéro !")
         st.markdown("---")
         st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
         
@@ -157,7 +157,7 @@ if mode == "Spectateur / Participant":
                 </div>
             </div>
             <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-                Tirage au sort automatique à l'échéance (18h49)
+                Tirage au sort automatique à l'échéance (18h52)
             </div>
 
             <!-- Zone d'Animation Loto -->
@@ -171,7 +171,7 @@ if mode == "Spectateur / Participant":
 
         <script>
             const participants = {participants_js};
-            const countDownDate = new Date("September 25, 2026 18:49:00").getTime();
+            const countDownDate = new Date("September 25, 2026 18:52:00").getTime();
             let animationLancee = false;
 
             const x = setInterval(function() {{

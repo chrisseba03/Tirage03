@@ -57,18 +57,17 @@ if "is_admin" not in st.session_state:
     st.session_state["is_admin"] = False
 
 # ---------------------------------------------------------
-# POINT DE CONTRÔLE SÉCURISÉ (ENREGISTREMENT DU GAGNANT EXACT)
+# POINT DE CONTRÔLE SÉCURISÉ (ENREGISTREMENT UNIQUE ET DÉFINITIF)
 # ---------------------------------------------------------
 query_params = st.query_params
 if "action" in query_params and query_params["action"] == "execute_draw":
     data_live = load_data()
+    # SÉCURITÉ ABSOLUE : Si aucun gagnant n'est enregistré dans le fichier JSON
     if not data_live["gagnant"] and data_live["participants_acceptes"]:
-        # On récupère LE nom exact sur lequel l'animation s'est arrêtée
         gagnant_recu = query_params.get("winner", None)
         if gagnant_recu and gagnant_recu in data_live["participants_acceptes"]:
             data_live["gagnant"] = gagnant_recu
         else:
-            # Sécurité de secours si le paramètre est absent
             data_live["gagnant"] = data_live["participants_acceptes"][0]
             
         data_live["etat_tirage"] = "Termine"
@@ -109,7 +108,7 @@ else:
     mode_actuel = "Admin"
 
 # ---------------------------------------------------------
-# AFFICHAGE DU RÉSULTAT FINAL (VERROUILLÉ)
+# AFFICHAGE DU RÉSULTAT FINAL (VERROUILLÉ DÉFINITIVEMENT)
 # ---------------------------------------------------------
 if data["gagnant"] or data["etat_tirage"] == "Termine":
     st.balloons()
@@ -121,24 +120,21 @@ if data["gagnant"] or data["etat_tirage"] == "Termine":
     </div>
     """, unsafe_allow_html=True)
     
-    st.success("🔒 **Tirage verrouillé par le système.** Même en actualisant la page 100 fois, ce résultat est immuable.")
+    st.success("🔒 **Tirage verrouillé par le système.** Peu importe le nombre d'actualisations sur vos différents écrans, ce résultat est immuable.")
 
 # ---------------------------------------------------------
-# EN ATTENTE DU TIRAGE (COMPTE À REBOURS + ANIMATION UNIQUE)
+# EN ATTENTE DU TIRAGE (COMPTE À REBOURS PRÉCIS À 19H05)
 # ---------------------------------------------------------
 else:
-    st.info("💡 **Le saviez-vous ?** Le compte à rebours ci-dessous est synchronisé. À l'heure dite, l'animation désignera le vainqueur sous vos yeux !")
+    st.info("💡 **Le saviez-vous ?** Le compte à rebours ci-dessous est synchronisé. À **19h05** pile, l'animation désignera le vainqueur sous vos yeux en direct !")
     st.markdown("---")
     
     participants_json = json.dumps(data["participants_acceptes"], ensure_ascii=False)
     
+    # Heure cible programmée strictement à 19h05:00 heure locale (basée sur le composant)
     live_animation_html = f"""
     <div style="text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 10px;">
         <div id="countdown-box" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;">
-            <div style="background: #1e293b; color: white; padding: 12px; border-radius: 8px; min-width: 65px;">
-                <span id="days" style="font-size: 22px; font-weight: bold; display: block;">0</span>
-                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Jours</span>
-            </div>
             <div style="background: #1e293b; color: white; padding: 12px; border-radius: 8px; min-width: 65px;">
                 <span id="hours" style="font-size: 22px; font-weight: bold; display: block;">0</span>
                 <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Heures</span>
@@ -153,7 +149,7 @@ else:
             </div>
         </div>
         <div id="status-text" style="font-size: 14px; color: #64748b; margin-bottom: 15px; font-weight: 500;">
-            En attente de l'heure du tirage (18h52)...
+            En attente de l'heure du tirage (19h05)...
         </div>
 
         <div id="loto-container" style="display: none; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
@@ -166,16 +162,17 @@ else:
 
     <script>
         const participants = {participants_json};
-        const targetTime = new Date("September 25, 2026 18:52:00").getTime();
+        
+        // DÉFINITION DE LA DATE ET HEURE EXACTE : 25 septembre 2026 à 19h05:00
+        const targetTime = new Date(2026, 8, 25, 19, 5, 0).getTime();
         let animationTriggered = false;
 
         const timer = setInterval(function() {{
             const now = new Date().getTime();
             const distance = targetTime - now;
 
-            if (distance < 0) {{
+            if (distance <= 0) {{
                 clearInterval(timer);
-                document.getElementById("days").innerText = "0";
                 document.getElementById("hours").innerText = "0";
                 document.getElementById("minutes").innerText = "0";
                 document.getElementById("seconds").innerText = "0";
@@ -196,9 +193,9 @@ else:
                         document.getElementById("loto-ball").innerText = selectedWinner;
                         counter++;
                         
-                        if (counter > 22) {{
+                        if (counter > 25) {{
                             clearInterval(spinInterval);
-                            // TRANSMISSION DIRECTE DU GAGNANT EXACT VISUEL AU SERVEUR
+                            // TRANSMISSION UNIQUE AU SERVEUR POUR VERROUILLAGE DÉFINITIF
                             const cleanBaseUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
                             window.top.location.href = cleanBaseUrl + "?action=execute_draw&winner=" + encodeURIComponent(selectedWinner);
                         }}
@@ -207,12 +204,10 @@ else:
                     document.getElementById("status-text").innerText = "Heure atteinte, mais aucun participant enregistré !";
                 }}
             }} else {{
-                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                 const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-                document.getElementById("days").innerText = days;
                 document.getElementById("hours").innerText = hours;
                 document.getElementById("minutes").innerText = minutes;
                 document.getElementById("seconds").innerText = seconds;

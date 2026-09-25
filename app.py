@@ -138,7 +138,8 @@ if mode == "Spectateur / Participant":
 
     <script>
         const participants = {participants_js};
-        const countDownDate = new Date("September 25, 2026 16:18:00").getTime();
+        // Cible réglée dans exactement 2 minutes (16:32:00)
+        const countDownDate = new Date("September 25, 2026 16:32:00").getTime();
         let etatAdmin = "{etat_actuel}";
         let gagnantAdmin = "{gagnant_actuel}";
 
@@ -173,7 +174,6 @@ if mode == "Spectateur / Participant":
             }}, 200);
         }}
 
-        // Si le tirage est déjà terminé, on affiche directement le gagnant dans le composant HTML
         if (etatAdmin === "Termine" && gagnantAdmin) {{
             showWinnerUI(gagnantAdmin);
         }} else if (etatAdmin === "En cours") {{
@@ -219,7 +219,6 @@ if mode == "Spectateur / Participant":
         
     st.markdown("---")
     
-    # Affichage des participants sur 3 colonnes et triés par ordre alphabétique
     nb_participants = len(data["participants_acceptes"])
     st.subheader(f"✅ Participants Validés ({nb_participants})")
     
@@ -264,7 +263,7 @@ if mode == "Spectateur / Participant":
         st.rerun()
 
 # ---------------------------------------------------------
-# MODE 2 : ADMINISTRATEUR (PANNEAU UNIQUE PLEINE PAGE)
+# MODE 2 : ADMINISTRATEUR
 # ---------------------------------------------------------
 else:
     nb_visites = st.session_state.get("visit_count", 1)
@@ -410,7 +409,7 @@ else:
                 st.write("Aucun refus.")
 
 # ---------------------------------------------------------
-# PIED DE PAGE (FOOTER) AVEC LIENS CLIQUABLES
+# PIED DE PAGE (FOOTER)
 # ---------------------------------------------------------
 st.markdown("---")
 st.markdown("""

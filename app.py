@@ -63,13 +63,13 @@ if "is_admin" not in st.session_state:
 data = load_data()
 
 # ---------------------------------------------------------
-# ENDPOINT INTERNE : VERROUILLAGE STRICT CÔTÉ SERVEUR
+# ENDPOINT INTERNE : VERROUILLAGE STRICT CÔTÉ SERVEUR (IMMUABLE)
 # ---------------------------------------------------------
 query_params = st.query_params
 if "trigger_draw" in query_params:
     data_fresh = load_data()
-    # SÉCURITÉ ABSOLUE : Si le tirage n'est pas déjà terminé, on fixe le gagnant UNE SEULE FOIS pour tous
-    if data_fresh["etat_tirage"] != "Termine" and data_fresh["participants_acceptes"]:
+    # SÉCURITÉ TOTALE : Si un gagnant existe déjà ou que le tirage est terminé, on BLOQUE net et on ne touche plus à rien !
+    if data_fresh["etat_tirage"] != "Termine" and not data_fresh["gagnant"] and data_fresh["participants_acceptes"]:
         gagnant = random.choice(data_fresh["participants_acceptes"])
         data_fresh["etat_tirage"] = "Termine"
         data_fresh["gagnant"] = gagnant
@@ -115,8 +115,8 @@ if mode == "Spectateur / Participant":
     data = load_data()
     etat_actuel = data["etat_tirage"]
     
-    # SI LE TIRAGE EST TERMINÉ, ON BLOQUE L'AFFICHAGE DÉFINITIVEMENT SUR CE RÉSULTAT
-    if etat_actuel == "Termine" and data["gagnant"]:
+    # SI LE TIRAGE EST TERMINÉ OU QU'UN GAGNANT EST DÉJÀ LÀ, AFFICHAGE FIXE ET INDÉSTRUCTIBLE
+    if etat_actuel == "Termine" or data["gagnant"]:
         st.balloons()
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #10b981, #047857); padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.4); border: 6px solid #a7f3d0; margin-top: 20px; margin-bottom: 30px;">
@@ -126,10 +126,10 @@ if mode == "Spectateur / Participant":
         </div>
         """, unsafe_allow_html=True)
         
-        st.info("🔒 **Le tirage est terminé et le résultat est définitivement verrouillé.** Même si vous actualisez la page, ce gagnant restera affiché sur tous vos appareils.")
+        st.info("🔒 **Le tirage est terminé et verrouillé.** Aucune actualisation ne pourra modifier ce résultat.")
 
     else:
-        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h46 dès que le compte à rebours arrivera à zéro !")
+        st.info("💡 **Info :** Le tirage se lancera automatiquement à 18h49 dès que le compte à rebours arrivera à zéro !")
         st.markdown("---")
         st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
         
@@ -157,7 +157,7 @@ if mode == "Spectateur / Participant":
                 </div>
             </div>
             <div id="countdown-text" style="font-size: 13px; color: gray; margin-bottom: 10px;">
-                Tirage au sort automatique à l'échéance (18h46)
+                Tirage au sort automatique à l'échéance (18h49)
             </div>
 
             <!-- Zone d'Animation Loto -->
@@ -171,7 +171,7 @@ if mode == "Spectateur / Participant":
 
         <script>
             const participants = {participants_js};
-            const countDownDate = new Date("September 25, 2026 18:46:00").getTime();
+            const countDownDate = new Date("September 25, 2026 18:49:00").getTime();
             let animationLancee = false;
 
             const x = setInterval(function() {{
@@ -335,7 +335,7 @@ else:
         if current_data["participants_acceptes"]:
             st.write(f"Participants validés actuels : {len(current_data['participants_acceptes'])}")
             if st.button("🎲 LANCER LE VRAI TIRAGE MAINTENANT !"):
-                if current_data["etat_tirage"] != "Termine":
+                if current_data["etat_tirage"] != "Termine" and not current_data["gagnant"]:
                     gagnant = random.choice(current_data["participants_acceptes"])
                     current_data["etat_tirage"] = "Termine"
                     current_data["gagnant"] = gagnant
@@ -350,7 +350,7 @@ else:
         st.subheader("🗑️ Gestion et Réinitialisation")
         current_data = load_data()
         
-        if current_data["etat_tirage"] == "Termine":
+        if current_data["etat_tirage"] == "Termine" or current_data["gagnant"]:
             if st.button("🔄 Déverrouiller et Effacer le gagnant (Remise à zéro du jeu)"):
                 current_data["etat_tirage"] = "En attente"
                 current_data["gagnant"] = None

@@ -4,6 +4,7 @@ import random
 import time
 from datetime import datetime, timezone, timedelta
 import streamlit as st
+import streamlit.components.v1 as components
 
 DATA_FILE = "tirage_data.json"
 VISITS_FILE = "visits_count.json"
@@ -89,30 +90,61 @@ if mode == "Spectateur / Participant":
     st.info("💡 **Info :** Cette page se met à jour régulièrement pour intégrer les nouveaux participants au fur et à mesure des validations !")
     
     st.markdown("---")
-    st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & En Direct</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>⏳ Sablier du Tirage & Compte à Rebours</h3>", unsafe_allow_html=True)
     
-    tz_france = timezone(timedelta(hours=2))
-    cible = datetime(2026, 10, 4, 20, 0, 0, tzinfo=tz_france)
-    maintenant = datetime.now(tz_france)
-    delta = cible - maintenant
-    
-    if delta.total_seconds() > 0 and data["etat_tirage"] == "En attente":
-        jours = delta.days
-        heures, reste = divmod(delta.seconds, 3600)
-        minutes, secondes = divmod(reste, 60)
-        
-        st.markdown(f"""
-        <div style="text-align: center; font-size: 20px; font-weight: bold; background-color: #1e293b; color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-            ⏳ {jours} Jours, {heures}h {minutes}m {secondes}s restants<br>
-            <span style="font-size: 13px; color: #38bdf8;">Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00</span>
+    # Compte à rebours dynamique en direct (JS)
+    countdown_html = """
+    <div style="display: flex; justify-content: center; gap: 15px; text-align: center; font-family: sans-serif; margin-bottom: 10px;">
+        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <span id="days" style="font-size: 26px; font-weight: bold; display: block;">0</span>
+            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Jours</span>
         </div>
-        """, unsafe_allow_html=True)
-        
-        if delta.total_seconds() <= 0 and data["participants_acceptes"] and data["etat_tirage"] == "En attente":
-            data["etat_tirage"] = "Termine"
-            data["gagnant"] = random.choice(data["participants_acceptes"])
-            save_data(data)
-            st.rerun()
+        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <span id="hours" style="font-size: 26px; font-weight: bold; display: block;">0</span>
+            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Heures</span>
+        </div>
+        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <span id="minutes" style="font-size: 26px; font-weight: bold; display: block;">0</span>
+            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Min</span>
+        </div>
+        <div style="background: #1e293b; color: white; padding: 12px; border-radius: 10px; min-width: 75px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <span id="seconds" style="font-size: 26px; font-weight: bold; display: block; color: #38bdf8;">0</span>
+            <span style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Sec</span>
+        </div>
+    </div>
+    <div style="text-align: center; font-size: 14px; color: gray; margin-bottom: 10px;">
+        Fermeture et tirage le Dimanche 4 octobre 2026 à 20h00
+    </div>
+
+    <script>
+        const countDownDate = new Date("October 4, 2026 20:00:00").getTime();
+
+        const x = setInterval(function() {
+            const now = new Date().getTime();
+            const distance = countDownDate - now;
+
+            if (distance < 0) {
+                clearInterval(x);
+                document.getElementById("days").innerText = "0";
+                document.getElementById("hours").innerText = "0";
+                document.getElementById("minutes").innerText = "0";
+                document.getElementById("seconds").innerText = "0";
+            } else {
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                document.getElementById("days").innerText = days;
+                document.getElementById("hours").innerText = hours;
+                document.getElementById("minutes").innerText = minutes;
+                document.getElementById("seconds").innerText = seconds;
+            }
+        }, 1000);
+    </script>
+    """
+    components.html(countdown_html, height=110)
+    st.markdown("---")
     
     etat = data["etat_tirage"]
     if etat == "Termine" and data["gagnant"]:
@@ -242,7 +274,7 @@ else:
             else:
                 st.warning("Ajoutez des participants d'abord.")
 
-            # Nouveau bouton pour effacer le gagnant et refaire des tests
+            # Bouton pour effacer le gagnant et refaire des tests
             st.markdown("---")
             if data["etat_tirage"] == "Termine":
                 if st.button("🔄 Effacer le gagnant / Réinitialiser le tirage"):

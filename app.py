@@ -60,10 +60,10 @@ if "is_admin" not in st.session_state:
 data = load_data()
 
 # ---------------------------------------------------------
-# VÉRIFICATION AUTOMATIQUE CÔTÉ SERVEUR (HEURE CIBLE : 19h07)
+# VÉRIFICATION AUTOMATIQUE CÔTÉ SERVEUR (HEURE CIBLE : 19h10)
 # ---------------------------------------------------------
-# Date et heure cible exacte : 25 septembre 2026 à 19h07:00
-target_datetime = datetime(2026, 9, 25, 19, 7, 0)
+# Date et heure cible exacte : 25 septembre 2026 à 19h10:00
+target_datetime = datetime(2026, 9, 25, 19, 10, 0)
 now = datetime.now()
 
 # Si l'heure est dépassée, que le tirage n'a pas encore de gagnant et qu'il y a des participants
@@ -119,10 +119,10 @@ if data["gagnant"] or data["etat_tirage"] == "Termine":
     st.success("🔒 **Tirage verrouillé par le serveur.** Tous les appareils affichent ce même résultat unique.")
 
 # ---------------------------------------------------------
-# EN ATTENTE DU TIRAGE (COMPTE À REBOURS VISUEL À 19H07)
+# EN ATTENTE DU TIRAGE (COMPTE À REBOURS AVEC AUTO-RAFRAÎCHISSEMENT)
 # ---------------------------------------------------------
 else:
-    st.info("💡 **Le saviez-vous ?** Le compte à rebours ci-dessous indique le temps restant avant le tirage officiel à **19h07** pile !")
+    st.info("💡 **Le saviez-vous ?** Le compte à rebours ci-dessous indique le temps restant avant le tirage officiel à **19h10** pile !")
     st.markdown("---")
     
     live_animation_html = """
@@ -141,13 +141,13 @@ else:
                 <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Sec</span>
             </div>
         </div>
-        <div id="status-text" style="font-size: 14px; color: #64748b; font-weight: 500;">
-            Le serveur effectuera le tirage officiel automatiquement à 19h07. Actualisez la page si besoin pour voir le résultat en direct !
+        <div id="status-text" style="font-size: 14px; color: #38bdf8; font-weight: 600;">
+            Le serveur effectuera le tirage automatique à 19h10 pile...
         </div>
     </div>
 
     <script>
-        const targetTime = new Date(2026, 8, 25, 19, 7, 0).getTime();
+        const targetTime = new Date(2026, 8, 25, 19, 10, 0).getTime();
 
         const timer = setInterval(function() {
             const now = new Date().getTime();
@@ -158,7 +158,11 @@ else:
                 document.getElementById("hours").innerText = "0";
                 document.getElementById("minutes").innerText = "0";
                 document.getElementById("seconds").innerText = "0";
-                document.getElementById("status-text").innerText = "Heure atteinte ! En attente de la validation du serveur...";
+                document.getElementById("status-text").innerText = "Heure atteinte ! Lancement du tirage en cours...";
+                
+                setTimeout(function() {
+                    window.location.reload();
+                }, 1000);
             } else {
                 const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
